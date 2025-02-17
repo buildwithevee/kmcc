@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:annu@localhost:3306/kmcc?schema=public"
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  name              String
+  email             String?  @unique
+  gender            String?
+  memberId          String   @unique
+  iqamaNumber       String   @unique
+  phoneNumber       String   @unique
+  profileImage      String? // Nullable field
+  password          String
+  isSurveyCompleted Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  profile           Profile?
+  contactInfo       ContactInfo?
+  EventRegistration EventRegistration[]
+  serviceBookings   ServiceBooking[] // Relation to ServiceBooking
+
+  @@map("users") // Maps this model to the "users" table in the database
+}
+
+model Membership {
+  id          Int     @id @default(autoincrement())
+  memberId    String  @unique
+  iqamaNumber String  @unique
+  name        String
+  phoneNumber String?
+  status      String
+
+  @@unique([memberId, iqamaNumber]) // Ensures uniqueness for verification
+  @@map("memberships") // Maps this model to the "memberships" table
+}
+
+model Profile {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  occupation  String?
+  employer    String?
+  place       String?
+  dateOfBirth DateTime?
+  bloodGroup  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles") // Maps this model to the "profiles" table
+}
+
+model ContactInfo {
+  id      Int     @id @default(autoincrement())
+  userId  Int     @unique
+  phone   String?
+  address String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("contact_infos") // Maps this model to the "contact_infos" table
+}
+
+model Banner {
+  id        Int      @id @default(autoincrement())
+  image     Bytes // Stores the image as binary (BLOB)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("banners") // Maps this model to the "banners" table
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String? // Optional event description
+  eventDate   DateTime
+  place       String
+  timing      String // Example: "4 AM - 10 PM"
+  highlights  Json // ✅ Store as JSON instead of a string
+  eventType   String
+  image       Bytes? // ✅ Store event image directly in the database (optional)
+  isFinished  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  registrations EventRegistration[]
+}
+
+model EventRegistration {
+  id         Int      @id @default(autoincrement())
+  eventId    Int
+  userId     Int
+  isAttended Boolean  @default(false) // Admin can mark attendance
+  createdAt  DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId]) // Prevent duplicate registrations
+}
+
+model Job {
+  id                  Int      @id @default(autoincrement())
+  companyName         String
+  logo                Bytes // Store binary data (image) instead of URL
+  position            String
+  jobMode             String
+  salary              Int
+  place               String
+  jobDescription      String
+  keyResponsibilities Json     @db.Json
+  requirements        Json     @db.Json
+  benefits            Json     @db.Json
+  isClosed            Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  applications JobApplication[] // One job can have multiple applications
+}
+
+model JobApplication {
+  id       Int    @id @default(autoincrement())
+  job      Job    @relation(fields: [jobId], references: [id])
+  jobId    Int
+  fullName String
+  email    String
+  phone    String
+  resume   Bytes // Store binary data (image) instead of URL
+
+  createdAt DateTime @default(now())
+}
+
+model News {
+  id        Int      @id @default(autoincrement())
+  type      String
+  heading   String
+  author    String
+  body      String   @db.Text // ✅ Change this from String to Text
+  image     Bytes
+  createdAt DateTime @default(now())
+}
+
+model Service {
+  id            Int      @id @default(autoincrement())
+  title         String
+  location      String
+  availableTime String
+  availableDays Json     @db.Json // Example: ["Monday", "Tuesday", "Wednesday"]
+  image         Bytes?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bookings ServiceBooking[] // One service can have multiple bookings
+
+  @@map("services")
+}
+
+model ServiceBooking {
+  id        Int      @id @default(autoincrement())
+  serviceId Int
+  userId    Int
+  date      DateTime
+  status    String   @default("pending") // Pending, Confirmed, Cancelled
+  createdAt DateTime @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("service_bookings")
+}
