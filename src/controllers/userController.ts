@@ -1,7 +1,7 @@
-import { prismaClient } from "@/config/db";
-import { AuthRequest } from "@/middlewares/authMiddleware";
-import { ApiError, ApiResponse } from "@/utils/apiHandlerHelpers";
-import { asyncHandler } from "@/utils/asyncHandler";
+import { prismaClient } from "../config/db";
+import { AuthRequest } from "../middlewares/authMiddleware";
+import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
+import { asyncHandler } from "../utils/asyncHandler";
 import { Response, Request } from "express";
 
 export const getEvents = asyncHandler(async (req: Request, res: Response) => {

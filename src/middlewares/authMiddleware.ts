@@ -1,5 +1,5 @@
-import { prismaClient } from "@/config/db";
-import { ApiError } from "@/utils/apiHandlerHelpers";
+import { prismaClient } from "../config/db";
+import { ApiError } from "../utils/apiHandlerHelpers";
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 

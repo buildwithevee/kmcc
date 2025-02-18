@@ -1,5 +1,5 @@
-import { createEvent, deleteEvent, getAllMemberships, getBanner, getEventById, getEvents, updateEventImage, uploadBanner, uploadMembership, uploadMiddleware } from "@/controllers/adminController";
-import { upload } from "@/helpers/upload";
+import { createEvent, deleteEvent, getAllMemberships, getBanner, getEventById, getEvents, updateEventImage, uploadBanner, uploadMembership, uploadMiddleware } from "../controllers/adminController";
+import { upload } from "../helpers/upload";
 import express from "express";
 
 

@@ -1,6 +1,6 @@
 import express from "express";
 import { createNews, getAllNews, getNewsById, updateNews, deleteNews } from "../controllers/newsController";
-import { upload } from "@/helpers/upload";
+import { upload } from "../helpers/upload";
 
 
 const router = express.Router();

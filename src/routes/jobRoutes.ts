@@ -1,6 +1,6 @@
 import express from "express";
-import { createJob, editJob, deleteJob, getActiveJobs, getJobById, getAllJobsAdmin, applyJob, getJobApplications, closeJob } from "@/controllers/jobController";
-import { upload } from "@/helpers/upload";
+import { createJob, editJob, deleteJob, getActiveJobs, getJobById, getAllJobsAdmin, applyJob, getJobApplications, closeJob } from "../controllers/jobController";
+import { upload } from "../helpers/upload";
 
 const router = express.Router();
 

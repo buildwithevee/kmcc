@@ -5,8 +5,8 @@ import {
     getServiceById,
     updateService,
     deleteService,
-} from "@/controllers/serviceController";
-import { bookService, getServiceBookings, updateBookingStatus } from "@/controllers/bookingController";
+} from "../controllers/serviceController";
+import { bookService, getServiceBookings, updateBookingStatus } from "../controllers/bookingController";
 
 const router = express.Router();
 

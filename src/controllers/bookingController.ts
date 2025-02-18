@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { asyncHandler } from "@/utils/asyncHandler";
-import { ApiResponse, ApiError } from "@/utils/apiHandlerHelpers";
-import { prismaClient } from "@/config/db";
+import { asyncHandler } from "../utils/asyncHandler";
+import { ApiResponse, ApiError } from "../utils/apiHandlerHelpers";
+import { prismaClient } from "../config/db";
 
 // ✅ Book a Service
 export const bookService = asyncHandler(async (req: Request, res: Response) => {

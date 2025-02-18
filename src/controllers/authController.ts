@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { asyncHandler } from "@/utils/asyncHandler";
-import { prismaClient } from "@/config/db";
-import { ApiError, ApiResponse } from "@/utils/apiHandlerHelpers";
+import { asyncHandler } from "../utils/asyncHandler";
+import { prismaClient } from "../config/db";
+import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 
 // ✅ Signup Controller
 export const signup = asyncHandler(async (req: Request, res: Response) => {

@@ -1,6 +1,6 @@
-import { prismaClient } from "@/config/db";
-import { asyncHandler } from "@/utils/asyncHandler";
-import { ApiError, ApiResponse } from "@/utils/apiHandlerHelpers";
+import { prismaClient } from "../config/db";
+import { asyncHandler } from "../utils/asyncHandler";
+import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { Request, Response } from "express";
 import sharp from "sharp";
 

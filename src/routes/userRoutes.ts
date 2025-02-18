@@ -1,5 +1,5 @@
-import { getEventById, getEvents, registerForEvent } from "@/controllers/userController";
-import { authenticateUser } from "@/middlewares/authMiddleware";
+import { getEventById, getEvents, registerForEvent } from "../controllers/userController";
+import { authenticateUser } from "../middlewares/authMiddleware";
 import express from "express";
 
 const router = express.Router();

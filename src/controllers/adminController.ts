@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import * as XLSX from "xlsx";
 
 import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError, ApiResponse } from "@/utils/apiHandlerHelpers";
-import { prismaClient } from "@/config/db";
-import { upload } from "@/helpers/upload";
+import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
+import { prismaClient } from "../config/db";
+import { upload } from "../helpers/upload";
 import sharp from "sharp";
 
 
