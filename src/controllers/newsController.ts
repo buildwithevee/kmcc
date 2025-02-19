@@ -129,6 +129,7 @@ export const getNewsById = asyncHandler(async (req: Request, res: Response) => {
     const formattedNews = {
         ...news,
         image: `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}`,
+        authorImage: `data:image/jpeg;base64,${Buffer.from(news.authorImage).toString("base64")}`
     };
 
     res.status(200).json(new ApiResponse(200, formattedNews, "News retrieved successfully."));
