@@ -144,13 +144,14 @@ model JobApplication {
 }
 
 model News {
-  id        Int      @id @default(autoincrement())
-  type      String
-  heading   String
-  author    String
-  body      String   @db.Text // ✅ Change this from String to Text
-  image     Bytes
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  type        String
+  heading     String
+  author      String
+  body        String   @db.Text // ✅ Change this from String to Text
+  image       Bytes
+  authorImage Bytes
+  createdAt   DateTime @default(now())
 }
 
 model Service {

@@ -78,3 +78,94 @@ export const registerForEvent = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 
+
+export const homePageData = asyncHandler(async (req: Request, res: Response) => {
+    const [events, services, jobs, banner, newsList] = await Promise.all([
+        prismaClient.event.findMany({
+            orderBy: { createdAt: "desc" },
+            take: 4,
+            select: {
+                id: true,
+                title: true,
+                eventDate: true,
+                place: true,
+                timing: true,
+                highlights: true,
+                eventType: true,
+                image: true,
+                isFinished: true,
+                createdAt: true,
+                updatedAt: true,
+                registrations: {
+                    take: 3, // Get only 3 registered users per event
+                    select: {
+                        user: {
+                            select: {
+                                profileImage: true,
+                            },
+                        },
+                    },
+                },
+            },
+        }),
+        prismaClient.service.findMany({
+            take: 4,
+            orderBy: { createdAt: "desc" },
+        }),
+        prismaClient.job.findMany({
+            take: 4,
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                companyName: true,
+                logo: true,
+                position: true,
+                jobMode: true,
+                salary: true,
+                place: true,
+            },
+        }),
+        prismaClient.banner.findFirst(),
+        prismaClient.news.findMany({
+            take: 5,
+            select: {
+                id: true,
+                type: true,
+                heading: true,
+                author: true,
+                createdAt: true,
+                image: true, // Binary data
+            },
+            orderBy: { createdAt: "desc" }, // Sort by latest news
+        }),
+    ]);
+
+    // Convert banner image if available
+    const bannerImage = banner?.image
+        ? `data:image/jpeg;base64,${Buffer.from(banner.image).toString("base64")}`
+        : null;
+
+    // Extract profile images of registered users
+    const formattedEvents = events.map(event => ({
+        ...event,
+        image: event.image ? `data:image/jpeg;base64,${Buffer.from(event.image).toString("base64")}` : null,
+        registeredUserImages: event.registrations
+            .map(reg => reg.user.profileImage ? `data:image/jpeg;base64,${Buffer.from(reg.user.profileImage).toString("base64")}` : null)
+            .filter(Boolean), // Exclude null values
+    }));
+    const formattedNews = newsList.map(news => ({
+        id: news.id,
+        type: news.type,
+        heading: news.heading,
+        author: news.author,
+        createdAt: news.createdAt,
+        image: news.image ? `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}` : null,
+    }));
+    const formattedJobs = jobs.map(job => ({
+        ...job,
+        logo: job.logo ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}` : null,
+    }));
+
+    res.json(new ApiResponse(200, { bannerImage, events: formattedEvents, jobs: formattedJobs, services, news: formattedNews }, "Home retrieved successfully"));
+});
+

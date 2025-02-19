@@ -10,26 +10,37 @@ import sharp from "sharp";
 export const createNews = asyncHandler(async (req: Request, res: Response) => {
     const { type, heading, author, body } = req.body;
 
-    if (!type || !heading || !author || !body || !req.file) {
-        throw new ApiError(400, "All fields are required, including the image.");
+    if (!type || !heading || !author || !body || !req.files) {
+        throw new ApiError(400, "All fields are required, including the image and authorImage.");
     }
 
-    console.log("Before compressing image...");
-    const compressedImage = await sharp(req.file.buffer)
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    if (!files.image || !files.authorImage) {
+        throw new ApiError(400, "Both news image and author image are required.");
+    }
+
+    console.log("Before compressing images...");
+    const compressedImage = await sharp(files.image[0].buffer)
         .resize(800)
         .jpeg({ quality: 70 })
         .toBuffer();
-    console.log("Image compressed successfully.");
+
+    const compressedAuthorImage = await sharp(files.authorImage[0].buffer)
+        .resize(200) // Smaller size for profile image
+        .jpeg({ quality: 70 })
+        .toBuffer();
+    console.log("Images compressed successfully.");
 
     console.log("Before inserting into DB...");
     const news = await prismaClient.news.create({
-        data: { type, heading, author, body, image: compressedImage },
+        data: { type, heading, author, body, image: compressedImage, authorImage: compressedAuthorImage },
     });
     console.log("News inserted successfully.");
 
     res.status(201).json(new ApiResponse(201, {}, "News created successfully."));
-
 });
+
 
 
 
@@ -99,38 +110,41 @@ export const getNewsById = asyncHandler(async (req: Request, res: Response) => {
 
 // ✅ Update News
 export const updateNews = asyncHandler(async (req: Request, res: Response) => {
-    const newsId = Number(req.params.id);
-    if (isNaN(newsId)) throw new ApiError(400, "Invalid news ID.");
-
     const { type, heading, author, body } = req.body;
+    const { id } = req.params;
 
-    const existingNews = await prismaClient.news.findUnique({ where: { id: newsId } });
-    if (!existingNews) throw new ApiError(404, "News not found.");
+    const existingNews = await prismaClient.news.findUnique({ where: { id: Number(id) } });
+    if (!existingNews) {
+        throw new ApiError(404, "News not found.");
+    }
 
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     let updatedImage = existingNews.image;
+    let updatedAuthorImage = existingNews.authorImage;
 
-    // ✅ Compress new image if provided
-    if (req.file) {
-        updatedImage = await sharp(req.file.buffer)
-            .resize(800) // Resize width to 800px (maintaining aspect ratio)
-            .jpeg({ quality: 70 }) // Convert to JPEG with 70% quality
+    if (files.image) {
+        updatedImage = await sharp(files.image[0].buffer)
+            .resize(800)
+            .jpeg({ quality: 70 })
             .toBuffer();
     }
 
-    // ✅ Update the news
-    const updatedNews = await prismaClient.news.update({
-        where: { id: newsId },
-        data: {
-            type: type || existingNews.type,
-            heading: heading || existingNews.heading,
-            author: author || existingNews.author,
-            body: body || existingNews.body,
-            image: updatedImage, // Update image only if provided
-        },
+    if (files.authorImage) {
+        updatedAuthorImage = await sharp(files.authorImage[0].buffer)
+            .resize(200)
+            .jpeg({ quality: 70 })
+            .toBuffer();
+    }
+
+    console.log("Updating news in DB...");
+    await prismaClient.news.update({
+        where: { id: Number(id) },
+        data: { type, heading, author, body, image: updatedImage, authorImage: updatedAuthorImage },
     });
 
     res.status(200).json(new ApiResponse(200, {}, "News updated successfully."));
 });
+
 
 // ✅ Delete News
 export const deleteNews = asyncHandler(async (req: Request, res: Response) => {
