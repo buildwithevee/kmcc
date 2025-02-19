@@ -114,7 +114,7 @@ exports.getNewsById = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(v
     const news = yield db_1.prismaClient.news.findUnique({ where: { id: newsId } });
     if (!news)
         throw new apiHandlerHelpers_1.ApiError(404, "News not found.");
-    const formattedNews = Object.assign(Object.assign({}, news), { image: `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}` });
+    const formattedNews = Object.assign(Object.assign({}, news), { image: `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}`, authorImage: `data:image/jpeg;base64,${Buffer.from(news.authorImage).toString("base64")}` });
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, formattedNews, "News retrieved successfully."));
 }));
 // ✅ Update News
