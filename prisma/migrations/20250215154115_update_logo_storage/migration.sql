@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `job` MODIFY `logo` LONGBLOB NOT NULL;

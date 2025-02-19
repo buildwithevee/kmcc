@@ -14,82 +14,108 @@ export const createNews = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(400, "All fields are required, including the image and authorImage.");
     }
 
+    // Ensure both images are uploaded
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
     if (!files.image || !files.authorImage) {
         throw new ApiError(400, "Both news image and author image are required.");
     }
 
-    console.log("Before compressing images...");
-    const compressedImage = await sharp(files.image[0].buffer)
-        .resize(800)
-        .jpeg({ quality: 70 })
-        .toBuffer();
+    try {
+        console.log("Before compressing images...");
 
-    const compressedAuthorImage = await sharp(files.authorImage[0].buffer)
-        .resize(200) // Smaller size for profile image
-        .jpeg({ quality: 70 })
-        .toBuffer();
-    console.log("Images compressed successfully.");
+        // Compress News Image
+        const compressedImage = await sharp(files.image[0].buffer)
+            .resize(800)
+            .jpeg({ quality: 70 })
+            .toBuffer();
 
-    console.log("Before inserting into DB...");
-    const news = await prismaClient.news.create({
-        data: { type, heading, author, body, image: compressedImage, authorImage: compressedAuthorImage },
-    });
-    console.log("News inserted successfully.");
+        // Compress Author Profile Image
+        const compressedAuthorImage = await sharp(files.authorImage[0].buffer)
+            .resize(200) // Smaller size for author profile
+            .jpeg({ quality: 70 })
+            .toBuffer();
 
-    res.status(201).json(new ApiResponse(201, {}, "News created successfully."));
+        console.log("Images compressed successfully.");
+
+        console.log("Before inserting into DB...");
+        const news = await prismaClient.news.create({
+            data: {
+                type,
+                heading,
+                author,
+                body,
+                image: compressedImage,
+                authorImage: compressedAuthorImage,
+            },
+        });
+
+        console.log("News inserted successfully.");
+
+        res.status(201).json(new ApiResponse(201, news, "News created successfully."));
+    } catch (error) {
+        console.error("Error inserting news:", error);
+        throw new ApiError(500, "Internal Server Error.");
+    }
 });
+
 
 
 
 
 // ✅ Get All News
 export const getAllNews = asyncHandler(async (req: Request, res: Response) => {
-    let { page, limit } = req.query;
+    try {
+        let { page, limit } = req.query;
 
-    const pageNumber = parseInt(page as string) || 1; // Default page = 1
-    const pageSize = parseInt(limit as string) || 10; // Default limit = 10
+        const pageNumber = parseInt(page as string) || 1; // Default page = 1
+        const pageSize = parseInt(limit as string) || 10; // Default limit = 10
 
-    const skip = (pageNumber - 1) * pageSize;
+        const skip = (pageNumber - 1) * pageSize;
 
-    // ✅ Fetch news with only required fields and pagination
-    const newsList = await prismaClient.news.findMany({
-        skip,
-        take: pageSize,
-        select: {
-            id: true,
-            type: true,
-            heading: true,
-            author: true,
-            createdAt: true,
-            image: true, // Binary data
-        },
-        orderBy: { createdAt: "desc" }, // Sort by latest news
-    });
+        // ✅ Fetch news with required fields and pagination
+        const newsList = await prismaClient.news.findMany({
+            skip,
+            take: pageSize,
+            select: {
+                id: true,
+                type: true,
+                heading: true,
+                author: true,
+                createdAt: true,
+                image: true, // Binary data
+                authorImage: true,
+            },
+            orderBy: { createdAt: "desc" }, // Sort by latest news
+        });
 
-    // ✅ Convert binary images to Base64
-    const formattedNews = newsList.map(news => ({
-        id: news.id,
-        type: news.type,
-        heading: news.heading,
-        author: news.author,
-        createdAt: news.createdAt,
-        image: news.image ? `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}` : null,
-    }));
+        // ✅ Convert binary images to Base64
+        const formattedNews = newsList.map(news => ({
+            id: news.id,
+            type: news.type,
+            heading: news.heading,
+            author: news.author,
+            createdAt: news.createdAt,
+            image: news.image ? `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}` : null,
+            authorImage: news.authorImage ? `data:image/jpeg;base64,${Buffer.from(news.authorImage).toString("base64")}` : null,
+        }));
 
-    // ✅ Get total count for pagination info
-    const totalNews = await prismaClient.news.count();
-    const totalPages = Math.ceil(totalNews / pageSize);
+        // ✅ Get total count for pagination info
+        const totalNews = await prismaClient.news.count();
+        const totalPages = Math.ceil(totalNews / pageSize);
 
-    res.status(200).json(new ApiResponse(200, {
-        currentPage: pageNumber,
-        totalPages,
-        pageSize,
-        totalNews,
-        news: formattedNews,
-    }, "News list retrieved successfully."));
+        res.status(200).json(new ApiResponse(200, {
+            currentPage: pageNumber,
+            totalPages,
+            pageSize,
+            totalNews,
+            news: formattedNews,
+        }, "News list retrieved successfully."));
+
+    } catch (error) {
+        throw new ApiError(500, "Error retrieving news");
+    }
 });
+
 
 
 // ✅ Get Single News
