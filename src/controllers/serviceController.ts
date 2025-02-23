@@ -1,18 +1,39 @@
 import { Request, Response } from "express";
+import multer from "multer";
+import sharp from "sharp";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse, ApiError } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
 
+// Multer setup for handling image uploads
+const storage = multer.memoryStorage(); // Store file in memory as Buffer
+const upload = multer({ storage });
+
 // ✅ Create a Service
 export const createService = asyncHandler(async (req: Request, res: Response) => {
-    const { title, location, availableTime, availableDays, image } = req.body;
+    const { title, location, availableTime, availableDays } = req.body;
 
-    if (!title || !location || !availableTime || !availableDays || !image) {
+    if (!title || !location || !availableTime || !availableDays) {
         throw new ApiError(400, "All fields are required.");
     }
 
+    let imageBuffer: Buffer | null = null;
+
+    if (req.file) {
+        imageBuffer = await sharp(req.file.buffer)
+            .resize(300, 300) // Resize to 300x300
+            .jpeg({ quality: 80 }) // Compress image
+            .toBuffer();
+    }
+
     const service = await prismaClient.service.create({
-        data: { title, location, availableTime, availableDays, image },
+        data: {
+            title,
+            location,
+            availableTime,
+            availableDays,
+            image: imageBuffer
+        },
     });
 
     res.status(201).json(new ApiResponse(201, service, "Service created successfully."));
@@ -32,6 +53,23 @@ export const getAllServices = asyncHandler(async (req: Request, res: Response) =
         orderBy: { createdAt: "desc" },
     });
 
+    // Safely convert Buffer to Base64 for frontend use
+    const formattedServices = services.map((service) => {
+        let imageData = null;
+        if (service.image && Buffer.isBuffer(service.image)) {
+            try {
+                imageData = `data:image/jpeg;base64,${service.image.toString('base64')}`;
+            } catch (error) {
+                console.error('Error converting image to base64:', error);
+                imageData = null;
+            }
+        }
+        return {
+            ...service,
+            image: imageData
+        };
+    });
+
     const totalServices = await prismaClient.service.count();
     const totalPages = Math.ceil(totalServices / pageSize);
 
@@ -40,7 +78,7 @@ export const getAllServices = asyncHandler(async (req: Request, res: Response) =
         totalPages,
         pageSize,
         totalServices,
-        services
+        services: formattedServices
     }, "Service list retrieved successfully."));
 });
 
@@ -52,7 +90,21 @@ export const getServiceById = asyncHandler(async (req: Request, res: Response) =
     const service = await prismaClient.service.findUnique({ where: { id: serviceId } });
     if (!service) throw new ApiError(404, "Service not found.");
 
-    res.status(200).json(new ApiResponse(200, service, "Service retrieved successfully."));
+    // Safely handle the image conversion
+    let imageData = null;
+    if (service.image && Buffer.isBuffer(service.image)) {
+        try {
+            imageData = `data:image/jpeg;base64,${service.image.toString('base64')}`;
+        } catch (error) {
+            console.error('Error converting image to base64:', error);
+            imageData = null;
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, {
+        ...service,
+        image: imageData
+    }, "Service retrieved successfully."));
 });
 
 // ✅ Update Service
@@ -60,10 +112,19 @@ export const updateService = asyncHandler(async (req: Request, res: Response) =>
     const serviceId = Number(req.params.id);
     if (isNaN(serviceId)) throw new ApiError(400, "Invalid service ID.");
 
-    const { title, location, availableTime, availableDays, image } = req.body;
+    const { title, location, availableTime, availableDays } = req.body;
 
     const existingService = await prismaClient.service.findUnique({ where: { id: serviceId } });
     if (!existingService) throw new ApiError(404, "Service not found.");
+
+    let imageBuffer: any | null = existingService.image; // Keep existing image if no new file is uploaded
+
+    if (req.file) {
+        imageBuffer = await sharp(req.file.buffer)
+            .resize(300, 300)
+            .jpeg({ quality: 80 })
+            .toBuffer();
+    }
 
     const updatedService = await prismaClient.service.update({
         where: { id: serviceId },
@@ -72,7 +133,7 @@ export const updateService = asyncHandler(async (req: Request, res: Response) =>
             location: location || existingService.location,
             availableTime: availableTime || existingService.availableTime,
             availableDays: availableDays || existingService.availableDays,
-            image: image || existingService.image,
+            image: imageBuffer,
         },
     });
 
@@ -91,3 +152,6 @@ export const deleteService = asyncHandler(async (req: Request, res: Response) =>
 
     res.status(200).json(new ApiResponse(200, null, "Service deleted successfully."));
 });
+
+// ✅ Export Multer Middleware
+export const uploadMiddleware = upload.single("image");

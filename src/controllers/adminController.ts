@@ -97,7 +97,7 @@ export const uploadBanner = asyncHandler(async (req: Request, res: Response) => 
 
     // ✅ Compress image using Sharp (Resize & Convert to JPEG)
     const compressedImage = await sharp(req.file.buffer)
-        .resize(1200, 600) // Adjust width & height (optional)
+        .resize(376, 388) // Adjust width & height (optional)
         .jpeg({ quality: 80 }) // Convert to JPEG with 80% quality
         .toBuffer();
 

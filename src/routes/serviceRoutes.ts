@@ -5,15 +5,16 @@ import {
     getServiceById,
     updateService,
     deleteService,
+    uploadMiddleware
 } from "../controllers/serviceController";
 import { bookService, getServiceBookings, updateBookingStatus } from "../controllers/bookingController";
 
 const router = express.Router();
 
-router.post("/", createService);
+router.post("/", uploadMiddleware, createService);
 router.get("/", getAllServices);
 router.get("/:id", getServiceById);
-router.put("/:id", updateService);
+router.put("/:id", uploadMiddleware, updateService);
 router.delete("/:id", deleteService);
 
 // Booking routes

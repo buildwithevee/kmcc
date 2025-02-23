@@ -12,7 +12,6 @@ datasource db {
   provider = "mysql"
   url      = "mysql://root:annu@localhost:3306/kmcc?schema=public"
 }
-
 model User {
   id                Int      @id @default(autoincrement())
   name              String
@@ -23,6 +22,8 @@ model User {
   phoneNumber       String   @unique
   profileImage      String? // Nullable field
   password          String
+  isAdmin           Boolean  @default(false) // ✅ Indicates if the user is an admin
+  isSuperAdmin      Boolean  @default(false) // ✅ Only one user should have this set to true
   isSurveyCompleted Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -31,9 +32,11 @@ model User {
   profile           Profile?
   contactInfo       ContactInfo?
   EventRegistration EventRegistration[]
-  serviceBookings   ServiceBooking[] // Relation to ServiceBooking
-
-  @@map("users") // Maps this model to the "users" table in the database
+  serviceBookings   ServiceBooking[]
+  UserSurvey        UserSurvey[]
+  responses         Response[]
+  surveyProgress    UserSurveyProgress[] // ✅ Added relation
+  UserSurveyAnswer  UserSurveyAnswer[]
 }
 
 model Membership {
@@ -181,4 +184,78 @@ model ServiceBooking {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("service_bookings")
+}
+
+model Survey {
+  id               Int                  @id @default(autoincrement())
+  title            String
+  description      String?
+  questions        Question[]
+  userSurveys      UserSurvey[]
+  isActive         Boolean              @default(true)
+  surveyProgress   UserSurveyProgress[] // ✅ Added relation
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  UserSurveyAnswer UserSurveyAnswer[]
+}
+
+model Question {
+  id       Int     @id @default(autoincrement())
+  surveyId Int
+  text     String
+  type     String // "multiple_choice" | "text"
+  options  Json? // ✅ Stores multiple-choice options
+  image    Bytes
+  required Boolean @default(true)
+
+  survey           Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  responses        Response[]
+  UserSurveyAnswer UserSurveyAnswer[]
+}
+
+model UserSurvey {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  surveyId    Int
+  isCompleted Boolean @default(false)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, surveyId])
+}
+
+model UserSurveyProgress {
+  id             Int     @id @default(autoincrement())
+  userId         Int
+  surveyId       Int
+  completed      Boolean @default(false)
+  lastQuestionId Int?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+}
+
+model UserSurveyAnswer {
+  id         Int    @id @default(autoincrement())
+  userId     Int
+  surveyId   Int
+  questionId Int
+  answer     String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  survey   Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+}
+
+model Response {
+  id         Int    @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  answer     String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
