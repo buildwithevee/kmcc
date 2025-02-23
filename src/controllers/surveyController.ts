@@ -2,8 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
-import { Prisma } from "@prisma/client";
-import { AuthRequest } from "@/middlewares/authMiddleware";
+import { AuthRequest } from "../middlewares/authMiddleware";
 import sharp from "sharp";
 
 // ✅ Create a new survey

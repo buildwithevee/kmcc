@@ -12,6 +12,7 @@ datasource db {
   provider = "mysql"
   url      = "mysql://root:annu@localhost:3306/kmcc?schema=public"
 }
+
 model User {
   id                Int      @id @default(autoincrement())
   name              String

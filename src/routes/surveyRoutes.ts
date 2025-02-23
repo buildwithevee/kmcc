@@ -8,9 +8,9 @@ import {
     submitAnswer,
     getSurveyProgress,
     getPendingSurveyForAdmin
-} from "@/controllers/surveyController";
-import { authenticateUser } from "@/middlewares/authMiddleware";
-import { upload } from "@/helpers/upload";
+} from "../controllers/surveyController";
+import { authenticateUser } from "../middlewares/authMiddleware";
+import { upload } from "../helpers/upload";
 
 const router = Router();
 
