@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import {prismaClient} from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse, ApiError } from "../utils/apiHandlerHelpers";
-import { AuthRequest } from "@/middlewares/authMiddleware";
+import { AuthRequest } from "../middlewares/authMiddleware";
 
 // ➤ Add a travel entry
 export const addTravel = asyncHandler(async (req: AuthRequest, res: Response) => {

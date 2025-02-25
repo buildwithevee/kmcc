@@ -15,6 +15,8 @@ import jobRouter from "./routes/jobRoutes";
 import newsRouter from "./routes/newsRoutes";
 import serviceRouter from "./routes/serviceRoutes";
 import surveyRouter from "./routes/surveyRoutes";
+import travelRouter from "./routes/travelRoutes";
+import airportRouter from "./routes/airportRoutes";
 
 dotenv.config();
 
@@ -52,6 +54,8 @@ app.use("/api/jobs/", jobRouter);
 app.use("/api/news/", newsRouter);
 app.use("/api/services/", serviceRouter);
 app.use("/api/survey/", surveyRouter);
+app.use("/api/travel/", travelRouter);
+app.use("/api/airport/", airportRouter);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
     throw new ApiError(404, "Route not found");

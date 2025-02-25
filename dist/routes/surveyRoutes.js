@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const surveyController_1 = require("@/controllers/surveyController");
-const authMiddleware_1 = require("@/middlewares/authMiddleware");
-const upload_1 = require("@/helpers/upload");
+const surveyController_1 = require("../controllers/surveyController");
+const authMiddleware_1 = require("../middlewares/authMiddleware");
+const upload_1 = require("../helpers/upload");
 const router = (0, express_1.Router)();
 // Survey routes
 router.route("/")

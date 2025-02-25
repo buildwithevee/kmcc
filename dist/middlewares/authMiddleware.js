@@ -26,7 +26,7 @@ const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, f
         const decoded = jsonwebtoken_1.default.verify(token, "aju");
         const user = yield db_1.prismaClient.user.findUnique({
             where: { id: decoded.userId },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true, isAdmin: true, isSuperAdmin: true },
         });
         if (!user) {
             return next(new apiHandlerHelpers_1.ApiError(401, "Unauthorized: User not found"));
@@ -35,6 +35,7 @@ const authenticateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, f
             userId: user.id,
             name: user.name,
             email: user.email, // Allow null
+            isAdmin: user.isAdmin || user.isSuperAdmin,
         };
         next();
     }
