@@ -21,7 +21,7 @@ model User {
   memberId          String   @unique
   iqamaNumber       String   @unique
   phoneNumber       String   @unique
-  profileImage      String? // Nullable field
+  profileImage      Bytes? // Nullable field
   password          String
   isAdmin           Boolean  @default(false) // ✅ Indicates if the user is an admin
   isSuperAdmin      Boolean  @default(false) // ✅ Only one user should have this set to true
@@ -38,6 +38,7 @@ model User {
   responses         Response[]
   surveyProgress    UserSurveyProgress[] // ✅ Added relation
   UserSurveyAnswer  UserSurveyAnswer[]
+  Travel            Travel[]
 }
 
 model Membership {
@@ -259,4 +260,31 @@ model Response {
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Airport {
+  id       Int    @id @default(autoincrement())
+  iataCode String @unique // Example: "DXB"
+  name     String // Example: "Dubai International Airport"
+  country  String // Example: "United Arab Emirates"
+
+  // Relations
+  departures Travel[] @relation("FromAirport")
+  arrivals   Travel[] @relation("ToAirport")
+}
+
+model Travel {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  fromAirportId Int
+  toAirportId   Int
+  travelDate    DateTime
+  travelTime    String
+  status        String // ["AVAILABLE", "ONBOARD", "NOT_AVAILABLE"]
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAirport Airport @relation(fields: [fromAirportId], references: [id], onDelete: Restrict, name: "FromAirport")
+  toAirport   Airport @relation(fields: [toAirportId], references: [id], onDelete: Restrict, name: "ToAirport")
 }

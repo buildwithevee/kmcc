@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { prismaClient } from "../config/db";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
@@ -168,4 +169,104 @@ export const homePageData = asyncHandler(async (req: Request, res: Response) => 
 
     res.json(new ApiResponse(200, { bannerImage, events: formattedEvents, jobs: formattedJobs, services, news: formattedNews }, "Home retrieved successfully"));
 });
+
+
+
+export const uploadAvatar = asyncHandler(
+    async (req: AuthRequest, res: Response) => {
+        const userId = req.user?.userId; // Ensure user is authenticated
+        if (!req.file) {
+          return res.status(400).json(new ApiResponse(400,{},"Provide file"));
+        }
+    
+        // Convert image to buffer and optimize size
+        const resizedImage = await sharp(req.file.buffer).resize(150, 150).toBuffer();
+    
+        // Update the user's avatar in the database
+        await prismaClient.user.update({
+          where: { id: userId },
+          data: { profileImage: resizedImage },
+        });
+    
+        return res.status(200).json(new ApiResponse(200,{},"file uploaded successfully"));
+    }
+)
+
+
+
+
+export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+        return res.status(401).json(new ApiResponse(401, {}, "Unauthorized"));
+    }
+
+    const { occupation, employer, place, dateOfBirth, bloodGroup } = req.body;
+
+    // Convert date string to Date object
+    const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
+
+    // Find profile
+    let profile = await prismaClient.profile.findUnique({
+        where: { userId },
+    });
+
+    if (!profile) {
+        // Create a new profile if it doesn't exist
+        profile = await prismaClient.profile.create({
+            data: {
+                userId,
+                occupation,
+                employer,
+                place,
+                dateOfBirth: dob,
+                bloodGroup,
+            },
+        });
+    } else {
+        // Update the existing profile
+        profile = await prismaClient.profile.update({
+            where: { userId },
+            data: {
+                occupation,
+                employer,
+                place,
+                dateOfBirth: dob,
+                bloodGroup,
+            },
+        });
+    }
+
+    return res.status(200).json(new ApiResponse(200, profile, "Profile updated successfully"));
+});
+
+export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+        return res.status(401).json(new ApiResponse(401, {}, "Unauthorized"));
+    }
+
+    // Fetch profile along with user details (including profileImage)
+    const profile = await prismaClient.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            gender: true,
+            phoneNumber: true,
+            profileImage: true, // Get profile image
+            profile: true, // Get profile details
+        },
+    });
+
+    if (!profile) {
+        return res.status(404).json(new ApiResponse(404, {}, "Profile not found"));
+    }
+
+    return res.status(200).json(new ApiResponse(200, profile, "Profile retrieved successfully"));
+});
+
 

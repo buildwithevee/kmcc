@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
         userId: number; // Fix type to match JWT
         name: string;
         email: string | null; // Allow null
+        isAdmin:boolean;
     };
 }
 
@@ -24,7 +25,7 @@ export const authenticateUser = async (req: AuthRequest, res: Response, next: Ne
 
         const user = await prismaClient.user.findUnique({
             where: { id: decoded.userId },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true,isAdmin:true,isSuperAdmin:true },
         });
 
         if (!user) {
@@ -35,7 +36,8 @@ export const authenticateUser = async (req: AuthRequest, res: Response, next: Ne
             userId: user.id,
             name: user.name,
             email: user.email, // Allow null
-        };
+            isAdmin: user.isAdmin || user.isSuperAdmin, 
+                };
 
         next();
     } catch (error) {
