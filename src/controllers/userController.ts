@@ -194,7 +194,6 @@ export const uploadAvatar = asyncHandler(
 
 
 
-
 export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
 
@@ -202,43 +201,50 @@ export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response
         return res.status(401).json(new ApiResponse(401, {}, "Unauthorized"));
     }
 
-    const { occupation, employer, place, dateOfBirth, bloodGroup } = req.body;
+    const { 
+        name, email, phoneNumber, gender, // User fields
+        occupation, employer, place, dateOfBirth, bloodGroup, kmccPosition, address // Profile fields
+    } = req.body;
 
-    // Convert date string to Date object
-    const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
+    // Convert dateOfBirth to Date object
+    const formattedDOB = dateOfBirth ? new Date(dateOfBirth) : undefined;
 
-    // Find profile
-    let profile = await prismaClient.profile.findUnique({
-        where: { userId },
+    // Update User Table
+    const user = await prismaClient.user.update({
+        where: { id: userId },
+        data: { 
+            name, 
+            email, 
+            phoneNumber, 
+            gender 
+        },
     });
 
-    if (!profile) {
-        // Create a new profile if it doesn't exist
-        profile = await prismaClient.profile.create({
-            data: {
-                userId,
-                occupation,
-                employer,
-                place,
-                dateOfBirth: dob,
-                bloodGroup,
-            },
-        });
-    } else {
-        // Update the existing profile
-        profile = await prismaClient.profile.update({
-            where: { userId },
-            data: {
-                occupation,
-                employer,
-                place,
-                dateOfBirth: dob,
-                bloodGroup,
-            },
-        });
-    }
+    // Update or Create Profile
+    const profile = await prismaClient.profile.upsert({
+        where: { userId },
+        update: { 
+            occupation, 
+            employer, 
+            place, 
+            dateOfBirth: formattedDOB, 
+            bloodGroup, 
+            kmccPosition, 
+            address 
+        },
+        create: { 
+            userId, 
+            occupation, 
+            employer, 
+            place, 
+            dateOfBirth: formattedDOB, 
+            bloodGroup, 
+            kmccPosition, 
+            address 
+        },
+    });
 
-    return res.status(200).json(new ApiResponse(200, profile, "Profile updated successfully"));
+    return res.status(200).json(new ApiResponse(200, { user, profile }, "Profile updated successfully"));
 });
 
 export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -248,8 +254,8 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
         return res.status(401).json(new ApiResponse(401, {}, "Unauthorized"));
     }
 
-    // Fetch profile along with user details (including profileImage)
-    const profile = await prismaClient.user.findUnique({
+    // Fetch user details with profile
+    const user = await prismaClient.user.findUnique({
         where: { id: userId },
         select: {
             id: true,
@@ -257,16 +263,25 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
             email: true,
             gender: true,
             phoneNumber: true,
-            profileImage: true, // Get profile image
-            profile: true, // Get profile details
+            profileImage: true,
+            profile: {
+                select: {
+                    occupation: true,
+                    employer: true,
+                    place: true,
+                    dateOfBirth: true,
+                    bloodGroup: true,
+                    kmccPosition: true,
+                    address: true,
+                },
+            },
         },
     });
 
-    if (!profile) {
+    if (!user) {
         return res.status(404).json(new ApiResponse(404, {}, "Profile not found"));
     }
 
-    return res.status(200).json(new ApiResponse(200, profile, "Profile retrieved successfully"));
+    return res.status(200).json(new ApiResponse(200, user, "Profile retrieved successfully"));
 });
-
 

@@ -54,17 +54,19 @@ model Membership {
 }
 
 model Profile {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @unique
-  occupation  String?
-  employer    String?
-  place       String?
-  dateOfBirth DateTime?
-  bloodGroup  String?
+  id           Int       @id @default(autoincrement())
+  userId       Int       @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occupation   String?
+  employer     String?
+  place        String?
+  dateOfBirth  DateTime?
+  bloodGroup   String?
+  kmccPosition String? // Added KMCC Position
+  address      String? // Added Address
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("profiles") // Maps this model to the "profiles" table
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ContactInfo {
