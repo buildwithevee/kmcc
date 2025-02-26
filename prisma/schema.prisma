@@ -168,6 +168,7 @@ model Service {
   availableTime String
   availableDays Json     @db.Json // Example: ["Monday", "Tuesday", "Wednesday"]
   image         Bytes?
+  phoneNumber   String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

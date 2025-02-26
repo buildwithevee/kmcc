@@ -263,7 +263,7 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
             email: true,
             gender: true,
             phoneNumber: true,
-            profileImage: true,
+            profileImage: true, // Stored in Bytes
             profile: {
                 select: {
                     occupation: true,
@@ -282,6 +282,14 @@ export const getProfile = asyncHandler(async (req: AuthRequest, res: Response) =
         return res.status(404).json(new ApiResponse(404, {}, "Profile not found"));
     }
 
-    return res.status(200).json(new ApiResponse(200, user, "Profile retrieved successfully"));
+    // Convert profileImage (Bytes) to Base64 if it exists
+    const base64Image = user.profileImage
+        ? `data:image/png;base64,${Buffer.from(user.profileImage).toString("base64")}`
+        : null;
+
+    return res.status(200).json(
+        new ApiResponse(200, { ...user, profileImage: base64Image }, "Profile retrieved successfully")
+    );
 });
+
 

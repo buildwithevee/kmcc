@@ -11,7 +11,7 @@ const upload = multer({ storage });
 
 // ✅ Create a Service
 export const createService = asyncHandler(async (req: Request, res: Response) => {
-    const { title, location, availableTime, availableDays } = req.body;
+    const { title, location, availableTime, availableDays,phoneNumber } = req.body;
 
     if (!title || !location || !availableTime || !availableDays) {
         throw new ApiError(400, "All fields are required.");
@@ -32,7 +32,8 @@ export const createService = asyncHandler(async (req: Request, res: Response) =>
             location,
             availableTime,
             availableDays,
-            image: imageBuffer
+            image: imageBuffer,
+            phoneNumber
         },
     });
 
@@ -112,7 +113,7 @@ export const updateService = asyncHandler(async (req: Request, res: Response) =>
     const serviceId = Number(req.params.id);
     if (isNaN(serviceId)) throw new ApiError(400, "Invalid service ID.");
 
-    const { title, location, availableTime, availableDays } = req.body;
+    const { title, location, availableTime, availableDays,phoneNumber } = req.body;
 
     const existingService = await prismaClient.service.findUnique({ where: { id: serviceId } });
     if (!existingService) throw new ApiError(404, "Service not found.");
@@ -134,6 +135,7 @@ export const updateService = asyncHandler(async (req: Request, res: Response) =>
             availableTime: availableTime || existingService.availableTime,
             availableDays: availableDays || existingService.availableDays,
             image: imageBuffer,
+            phoneNumber:phoneNumber ||existingService.phoneNumber
         },
     });
 
