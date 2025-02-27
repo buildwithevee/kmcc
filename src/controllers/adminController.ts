@@ -280,3 +280,96 @@ export const deleteEvent = asyncHandler(async (req: Request, res: Response) => {
 
     res.json(new ApiResponse(200, null, "Event deleted successfully"));
 });
+
+
+// Get all users with pagination and searching
+export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const pageNumber = parseInt(page as string) || 1;
+    const pageSize = parseInt(limit as string) || 10;
+    const searchQuery = search as string;
+  
+    const users = await prismaClient.user.findMany({
+      where:{
+        OR: [
+          { name: { contains: searchQuery } },
+          { iqamaNumber: { contains: searchQuery } },
+          { memberId: { contains: searchQuery } }
+        ]
+      }
+      ,
+      select: {
+        id: true,
+        name: true,
+        iqamaNumber: true,
+        memberId: true,
+        phoneNumber: true,
+        profileImage: true,
+      },
+      skip: (pageNumber - 1) * pageSize,
+      take: pageSize,
+    });
+  
+    const totalUsers = await prismaClient.user.count({
+      where: {
+        OR: [
+          { name: { contains: searchQuery,  } },
+          { iqamaNumber: { contains: searchQuery,  } },
+          { memberId: { contains: searchQuery,  } }
+        ]
+      }
+    });
+  
+    // Convert profile image to base64
+    const formattedUsers = users.map(user => ({
+      ...user,
+      profileImage: user.profileImage ? Buffer.from(user.profileImage).toString('base64') : null
+    }));
+  
+    res.json(new ApiResponse(200, {
+      users: formattedUsers,
+      pagination: {
+        totalUsers,
+        page: pageNumber,
+        limit: pageSize,
+        totalPages: Math.ceil(totalUsers / pageSize)
+      }
+    }, 'Users fetched successfully',));
+  });
+  
+  // Get a single user by ID
+  export const getUserById = asyncHandler(async (req: Request, res: Response, ) => {
+    const { id } = req.params;
+  
+    const user = await prismaClient.user.findUnique({
+      where: { id: Number(id) },
+      select: {
+        id: true,
+        name: true,
+        iqamaNumber: true,
+        memberId: true,
+        phoneNumber: true,
+        profileImage: true,
+        email: true,
+        isAdmin: true,
+        isSuperAdmin: true,
+        createdAt: true,
+        updatedAt: true,
+        profile: true,
+        contactInfo: true
+      }
+    });
+  
+    if (!user) {
+      return res.json(new ApiError(404, 'User not found'));
+    }
+  
+    // Convert profile image to base64
+    const formattedUser = {
+      ...user,
+      profileImage: user.profileImage ? Buffer.from(user.profileImage).toString('base64') : null
+    };
+  
+    res.json(new ApiResponse(200,formattedUser, 'User details fetched successfully' ));
+  });
+  

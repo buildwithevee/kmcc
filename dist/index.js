@@ -29,6 +29,8 @@ const jobRoutes_1 = __importDefault(require("./routes/jobRoutes"));
 const newsRoutes_1 = __importDefault(require("./routes/newsRoutes"));
 const serviceRoutes_1 = __importDefault(require("./routes/serviceRoutes"));
 const surveyRoutes_1 = __importDefault(require("./routes/surveyRoutes"));
+const travelRoutes_1 = __importDefault(require("./routes/travelRoutes"));
+const airportRoutes_1 = __importDefault(require("./routes/airportRoutes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -58,6 +60,8 @@ app.use("/api/jobs/", jobRoutes_1.default);
 app.use("/api/news/", newsRoutes_1.default);
 app.use("/api/services/", serviceRoutes_1.default);
 app.use("/api/survey/", surveyRoutes_1.default);
+app.use("/api/travel/", travelRoutes_1.default);
+app.use("/api/airport/", airportRoutes_1.default);
 app.use((req, res, next) => {
     throw new apiHandlerHelpers_1.ApiError(404, "Route not found");
 });

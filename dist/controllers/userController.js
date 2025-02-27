@@ -181,40 +181,45 @@ exports.updateProfile = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
     if (!userId) {
         return res.status(401).json(new apiHandlerHelpers_1.ApiResponse(401, {}, "Unauthorized"));
     }
-    const { occupation, employer, place, dateOfBirth, bloodGroup } = req.body;
-    // Convert date string to Date object
-    const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
-    // Find profile
-    let profile = yield db_1.prismaClient.profile.findUnique({
-        where: { userId },
+    const { name, email, phoneNumber, gender, // User fields
+    occupation, employer, place, dateOfBirth, bloodGroup, kmccPosition, address // Profile fields
+     } = req.body;
+    // Convert dateOfBirth to Date object
+    const formattedDOB = dateOfBirth ? new Date(dateOfBirth) : undefined;
+    // Update User Table
+    const user = yield db_1.prismaClient.user.update({
+        where: { id: userId },
+        data: {
+            name,
+            email,
+            phoneNumber,
+            gender
+        },
     });
-    if (!profile) {
-        // Create a new profile if it doesn't exist
-        profile = yield db_1.prismaClient.profile.create({
-            data: {
-                userId,
-                occupation,
-                employer,
-                place,
-                dateOfBirth: dob,
-                bloodGroup,
-            },
-        });
-    }
-    else {
-        // Update the existing profile
-        profile = yield db_1.prismaClient.profile.update({
-            where: { userId },
-            data: {
-                occupation,
-                employer,
-                place,
-                dateOfBirth: dob,
-                bloodGroup,
-            },
-        });
-    }
-    return res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, profile, "Profile updated successfully"));
+    // Update or Create Profile
+    const profile = yield db_1.prismaClient.profile.upsert({
+        where: { userId },
+        update: {
+            occupation,
+            employer,
+            place,
+            dateOfBirth: formattedDOB,
+            bloodGroup,
+            kmccPosition,
+            address
+        },
+        create: {
+            userId,
+            occupation,
+            employer,
+            place,
+            dateOfBirth: formattedDOB,
+            bloodGroup,
+            kmccPosition,
+            address
+        },
+    });
+    return res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, { user, profile }, "Profile updated successfully"));
 }));
 exports.getProfile = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
@@ -222,8 +227,8 @@ exports.getProfile = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(vo
     if (!userId) {
         return res.status(401).json(new apiHandlerHelpers_1.ApiResponse(401, {}, "Unauthorized"));
     }
-    // Fetch profile along with user details (including profileImage)
-    const profile = yield db_1.prismaClient.user.findUnique({
+    // Fetch user details with profile
+    const user = yield db_1.prismaClient.user.findUnique({
         where: { id: userId },
         select: {
             id: true,
@@ -231,12 +236,26 @@ exports.getProfile = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(vo
             email: true,
             gender: true,
             phoneNumber: true,
-            profileImage: true, // Get profile image
-            profile: true, // Get profile details
+            profileImage: true, // Stored in Bytes
+            profile: {
+                select: {
+                    occupation: true,
+                    employer: true,
+                    place: true,
+                    dateOfBirth: true,
+                    bloodGroup: true,
+                    kmccPosition: true,
+                    address: true,
+                },
+            },
         },
     });
-    if (!profile) {
+    if (!user) {
         return res.status(404).json(new apiHandlerHelpers_1.ApiResponse(404, {}, "Profile not found"));
     }
-    return res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, profile, "Profile retrieved successfully"));
+    // Convert profileImage (Bytes) to Base64 if it exists
+    const base64Image = user.profileImage
+        ? `data:image/png;base64,${Buffer.from(user.profileImage).toString("base64")}`
+        : null;
+    return res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, Object.assign(Object.assign({}, user), { profileImage: base64Image }), "Profile retrieved successfully"));
 }));

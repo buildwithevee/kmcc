@@ -1,4 +1,4 @@
-import { createEvent, deleteEvent, getAllMemberships, getBanner, getEventById, getEvents, updateEventImage, uploadBanner, uploadMembership, uploadMiddleware } from "../controllers/adminController";
+import { createEvent, deleteEvent, getAllMemberships, getAllUsers, getBanner, getEventById, getEvents, getUserById, updateEventImage, uploadBanner, uploadMembership, uploadMiddleware } from "../controllers/adminController";
 import { upload } from "../helpers/upload";
 import express from "express";
 
@@ -20,5 +20,10 @@ router.get("/get-events", getEvents);
 router.get("/events/:eventId", getEventById);
 router.delete("/event/:eventId", deleteEvent);
 
+
+router.get('/users', getAllUsers);
+
+// Route to get a single user by ID
+router.get('users/:id', getUserById);
 
 export default router;

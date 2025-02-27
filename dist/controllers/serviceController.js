@@ -23,7 +23,7 @@ const storage = multer_1.default.memoryStorage(); // Store file in memory as Buf
 const upload = (0, multer_1.default)({ storage });
 // ✅ Create a Service
 exports.createService = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { title, location, availableTime, availableDays } = req.body;
+    const { title, location, availableTime, availableDays, phoneNumber } = req.body;
     if (!title || !location || !availableTime || !availableDays) {
         throw new apiHandlerHelpers_1.ApiError(400, "All fields are required.");
     }
@@ -40,7 +40,8 @@ exports.createService = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
             location,
             availableTime,
             availableDays,
-            image: imageBuffer
+            image: imageBuffer,
+            phoneNumber
         },
     });
     res.status(201).json(new apiHandlerHelpers_1.ApiResponse(201, service, "Service created successfully."));
@@ -51,25 +52,26 @@ exports.getAllServices = (0, asyncHandler_1.asyncHandler)((req, res) => __awaite
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
+    // Fetch services with explicit selection
     const services = yield db_1.prismaClient.service.findMany({
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            title: true,
+            location: true,
+            availableTime: true,
+            availableDays: true,
+            image: true, // Ensure image is selected
+            createdAt: true,
+            updatedAt: true,
+        },
     });
-    // Safely convert Buffer to Base64 for frontend use
-    const formattedServices = services.map((service) => {
-        let imageData = null;
-        if (service.image && Buffer.isBuffer(service.image)) {
-            try {
-                imageData = `data:image/jpeg;base64,${service.image.toString('base64')}`;
-            }
-            catch (error) {
-                console.error('Error converting image to base64:', error);
-                imageData = null;
-            }
-        }
-        return Object.assign(Object.assign({}, service), { image: imageData });
-    });
+    // Convert image Buffer to Base64 safely
+    const formattedServices = services.map((service) => (Object.assign(Object.assign({}, service), { image: service.image
+            ? `data:image/jpeg;base64,${Buffer.from(service.image).toString("base64")}`
+            : null })));
     const totalServices = yield db_1.prismaClient.service.count();
     const totalPages = Math.ceil(totalServices / pageSize);
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, {
@@ -88,17 +90,10 @@ exports.getServiceById = (0, asyncHandler_1.asyncHandler)((req, res) => __awaite
     const service = yield db_1.prismaClient.service.findUnique({ where: { id: serviceId } });
     if (!service)
         throw new apiHandlerHelpers_1.ApiError(404, "Service not found.");
-    // Safely handle the image conversion
-    let imageData = null;
-    if (service.image && Buffer.isBuffer(service.image)) {
-        try {
-            imageData = `data:image/jpeg;base64,${service.image.toString('base64')}`;
-        }
-        catch (error) {
-            console.error('Error converting image to base64:', error);
-            imageData = null;
-        }
-    }
+    // Convert image Buffer to Base64 safely
+    const imageData = service.image
+        ? `data:image/jpeg;base64,${Buffer.from(service.image).toString("base64")}`
+        : null;
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, Object.assign(Object.assign({}, service), { image: imageData }), "Service retrieved successfully."));
 }));
 // ✅ Update Service
@@ -106,11 +101,11 @@ exports.updateService = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
     const serviceId = Number(req.params.id);
     if (isNaN(serviceId))
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid service ID.");
-    const { title, location, availableTime, availableDays } = req.body;
+    const { title, location, availableTime, availableDays, phoneNumber } = req.body;
     const existingService = yield db_1.prismaClient.service.findUnique({ where: { id: serviceId } });
     if (!existingService)
         throw new apiHandlerHelpers_1.ApiError(404, "Service not found.");
-    let imageBuffer = existingService.image; // Keep existing image if no new file is uploaded
+    let imageBuffer = existingService.image ? Buffer.from(existingService.image) : null;
     if (req.file) {
         imageBuffer = yield (0, sharp_1.default)(req.file.buffer)
             .resize(300, 300)
@@ -120,11 +115,12 @@ exports.updateService = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
     const updatedService = yield db_1.prismaClient.service.update({
         where: { id: serviceId },
         data: {
-            title: title || existingService.title,
-            location: location || existingService.location,
+            title: (title === null || title === void 0 ? void 0 : title.trim()) || existingService.title,
+            location: (location === null || location === void 0 ? void 0 : location.trim()) || existingService.location,
             availableTime: availableTime || existingService.availableTime,
             availableDays: availableDays || existingService.availableDays,
             image: imageBuffer,
+            phoneNumber: (phoneNumber === null || phoneNumber === void 0 ? void 0 : phoneNumber.trim()) || existingService.phoneNumber
         },
     });
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, updatedService, "Service updated successfully."));
@@ -134,10 +130,10 @@ exports.deleteService = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
     const serviceId = Number(req.params.id);
     if (isNaN(serviceId))
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid service ID.");
-    const existingService = yield db_1.prismaClient.service.findUnique({ where: { id: serviceId } });
-    if (!existingService)
+    // Directly attempt to delete without redundant lookup
+    const deletedService = yield db_1.prismaClient.service.delete({ where: { id: serviceId } }).catch(() => null);
+    if (!deletedService)
         throw new apiHandlerHelpers_1.ApiError(404, "Service not found.");
-    yield db_1.prismaClient.service.delete({ where: { id: serviceId } });
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, null, "Service deleted successfully."));
 }));
 // ✅ Export Multer Middleware

@@ -45,7 +45,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteEvent = exports.getEventById = exports.updateEventImage = exports.getEvents = exports.markAttendance = exports.createEvent = exports.getBanner = exports.uploadBanner = exports.getAllMemberships = exports.uploadMiddleware = exports.uploadMembership = void 0;
+exports.getUserById = exports.getAllUsers = exports.deleteEvent = exports.getEventById = exports.updateEventImage = exports.getEvents = exports.markAttendance = exports.createEvent = exports.getBanner = exports.uploadBanner = exports.getAllMemberships = exports.uploadMiddleware = exports.uploadMembership = void 0;
 const XLSX = __importStar(require("xlsx"));
 const asyncHandler_1 = require("../utils/asyncHandler");
 const apiHandlerHelpers_1 = require("../utils/apiHandlerHelpers");
@@ -262,4 +262,78 @@ exports.deleteEvent = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(v
         where: { id: Number(eventId) },
     });
     res.json(new apiHandlerHelpers_1.ApiResponse(200, null, "Event deleted successfully"));
+}));
+// Get all users with pagination and searching
+exports.getAllUsers = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
+    const searchQuery = search;
+    const users = yield db_1.prismaClient.user.findMany({
+        where: {
+            OR: [
+                { name: { contains: searchQuery } },
+                { iqamaNumber: { contains: searchQuery } },
+                { memberId: { contains: searchQuery } }
+            ]
+        },
+        select: {
+            id: true,
+            name: true,
+            iqamaNumber: true,
+            memberId: true,
+            phoneNumber: true,
+            profileImage: true,
+        },
+        skip: (pageNumber - 1) * pageSize,
+        take: pageSize,
+    });
+    const totalUsers = yield db_1.prismaClient.user.count({
+        where: {
+            OR: [
+                { name: { contains: searchQuery, } },
+                { iqamaNumber: { contains: searchQuery, } },
+                { memberId: { contains: searchQuery, } }
+            ]
+        }
+    });
+    // Convert profile image to base64
+    const formattedUsers = users.map(user => (Object.assign(Object.assign({}, user), { profileImage: user.profileImage ? Buffer.from(user.profileImage).toString('base64') : null })));
+    res.json(new apiHandlerHelpers_1.ApiResponse(200, {
+        users: formattedUsers,
+        pagination: {
+            totalUsers,
+            page: pageNumber,
+            limit: pageSize,
+            totalPages: Math.ceil(totalUsers / pageSize)
+        }
+    }, 'Users fetched successfully'));
+}));
+// Get a single user by ID
+exports.getUserById = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const user = yield db_1.prismaClient.user.findUnique({
+        where: { id: Number(id) },
+        select: {
+            id: true,
+            name: true,
+            iqamaNumber: true,
+            memberId: true,
+            phoneNumber: true,
+            profileImage: true,
+            email: true,
+            isAdmin: true,
+            isSuperAdmin: true,
+            createdAt: true,
+            updatedAt: true,
+            profile: true,
+            contactInfo: true
+        }
+    });
+    if (!user) {
+        return res.json(new apiHandlerHelpers_1.ApiError(404, 'User not found'));
+    }
+    // Convert profile image to base64
+    const formattedUser = Object.assign(Object.assign({}, user), { profileImage: user.profileImage ? Buffer.from(user.profileImage).toString('base64') : null });
+    res.json(new apiHandlerHelpers_1.ApiResponse(200, formattedUser, 'User details fetched successfully'));
 }));

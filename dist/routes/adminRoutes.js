@@ -19,4 +19,7 @@ router.post("/update-event-image", upload_1.upload.single("image"), adminControl
 router.get("/get-events", adminController_1.getEvents);
 router.get("/events/:eventId", adminController_1.getEventById);
 router.delete("/event/:eventId", adminController_1.deleteEvent);
+router.get('/users', adminController_1.getAllUsers);
+// Route to get a single user by ID
+router.get('users/:id', adminController_1.getUserById);
 exports.default = router;
