@@ -6,9 +6,9 @@ import { asyncHandler } from "../utils/asyncHandler";
 
 // ✅ Add an airport (Admin Only)
 export const addAirport = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (!req.user?.isAdmin) {
-        throw new ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
 
     const { name, code, country } = req.body;
 
@@ -44,9 +44,9 @@ export const getAirportById = asyncHandler(async (req: Request, res: Response) =
 
 // ✅ Update an airport (Admin Only)
 export const updateAirport = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (!req.user?.isAdmin) {
-        throw new ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
 
     const { name, code, country } = req.body;
     const airportId = Number(req.params.id);
@@ -69,9 +69,9 @@ export const updateAirport = asyncHandler(async (req: AuthRequest, res: Response
 
 // ✅ Delete an airport (Admin Only)
 export const deleteAirport = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (!req.user?.isAdmin) {
-        throw new ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
 
     const airportId = Number(req.params.id);
 

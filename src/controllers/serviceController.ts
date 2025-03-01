@@ -24,18 +24,20 @@ export const createService = asyncHandler(async (req: Request, res: Response) =>
             .resize(300, 300) // Resize to 300x300
             .jpeg({ quality: 80 }) // Compress image
             .toBuffer();
-    }
+                }
+            // Ensure availableDays is stored as a JSON array
+            const parsedAvailableDays = typeof availableDays === "string" ? JSON.parse(availableDays) : availableDays;
 
-    const service = await prismaClient.service.create({
-        data: {
-            title,
-            location,
-            availableTime,
-            availableDays,
-            image: imageBuffer,
-            phoneNumber
-        },
-    });
+            const service = await prismaClient.service.create({
+                data: {
+                    title,
+                    location,
+                    availableTime,
+                    availableDays: parsedAvailableDays, // Use parsed JSON array
+                    image: imageBuffer,
+                    phoneNumber
+                },
+            });
 
     res.status(201).json(new ApiResponse(201, service, "Service created successfully."));
 });
@@ -62,6 +64,7 @@ export const getAllServices = asyncHandler(async (req: Request, res: Response) =
             image: true, // Ensure image is selected
             createdAt: true,
             updatedAt: true,
+            phoneNumber:true
         },
     });
 

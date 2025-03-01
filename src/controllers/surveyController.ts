@@ -124,6 +124,38 @@ async function ensureSurveyProgressForUser(userId: number) {
         });
     }
 }
+export const getSurveyQuestions = asyncHandler(async (req: Request, res: Response) => {
+    const { surveyId } = req.params;
+
+    if (!surveyId) {
+        return res.status(400).json(new ApiResponse(400, {}, "Survey ID is required"));
+    }
+
+    // Fetch the survey to ensure it exists
+    const survey = await prismaClient.survey.findUnique({
+        where: { id: parseInt(surveyId) },
+    });
+
+    if (!survey) {
+        return res.status(404).json(new ApiResponse(404, {}, "Survey not found"));
+    }
+
+    // Fetch all questions associated with the survey
+    const questions = await prismaClient.question.findMany({
+        where: { surveyId: parseInt(surveyId) },
+        orderBy: { id: "asc" }, // Optional: Order questions by ID or any other field
+    });
+
+    // Convert image to Base64 format for each question
+    const questionsWithBase64Images = questions.map(question => ({
+        ...question,
+        image: question.image
+            ? `data:image/jpeg;base64,${Buffer.from(question.image).toString("base64")}`
+            : null, // Handle cases where image might be null
+    }));
+
+    res.status(200).json(new ApiResponse(200, { questions: questionsWithBase64Images }, "Questions fetched successfully"));
+});
 
 // ✅ Get user's pending active survey
 export const getPendingSurvey = asyncHandler(async (req: AuthRequest, res: Response) => {

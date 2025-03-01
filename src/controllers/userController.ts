@@ -79,7 +79,6 @@ export const registerForEvent = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 
-
 export const homePageData = asyncHandler(async (req: Request, res: Response) => {
     const [events, services, jobs, banner, newsList] = await Promise.all([
         prismaClient.event.findMany({
@@ -112,6 +111,17 @@ export const homePageData = asyncHandler(async (req: Request, res: Response) => 
         prismaClient.service.findMany({
             take: 4,
             orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                title: true,
+                location: true,
+                availableTime: true,
+                availableDays: true,
+                image: true, // Include the image field
+                phoneNumber: true,
+                createdAt: true,
+                updatedAt: true,
+            },
         }),
         prismaClient.job.findMany({
             take: 4,
@@ -146,14 +156,27 @@ export const homePageData = asyncHandler(async (req: Request, res: Response) => 
         ? `data:image/jpeg;base64,${Buffer.from(banner.image).toString("base64")}`
         : null;
 
-    // Extract profile images of registered users
+    // Format events to include base64 image and only 3 registrations
     const formattedEvents = events.map(event => ({
         ...event,
         image: event.image ? `data:image/jpeg;base64,${Buffer.from(event.image).toString("base64")}` : null,
-        registeredUserImages: event.registrations
-            .map(reg => reg.user.profileImage ? `data:image/jpeg;base64,${Buffer.from(reg.user.profileImage).toString("base64")}` : null)
-            .filter(Boolean), // Exclude null values
+        registrations: event.registrations
+            .slice(0, 3) // Ensure only 3 registrations are included
+            .map(reg => ({
+                user: {
+                    profileImage: reg.user.profileImage
+                        ? `data:image/jpeg;base64,${Buffer.from(reg.user.profileImage).toString("base64")}`
+                        : null,
+                },
+            })),
     }));
+
+    // Format services to include base64 image
+    const formattedServices = services.map(service => ({
+        ...service,
+        image: service.image ? `data:image/jpeg;base64,${Buffer.from(service.image).toString("base64")}` : null,
+    }));
+
     const formattedNews = newsList.map(news => ({
         id: news.id,
         type: news.type,
@@ -162,12 +185,13 @@ export const homePageData = asyncHandler(async (req: Request, res: Response) => 
         createdAt: news.createdAt,
         image: news.image ? `data:image/jpeg;base64,${Buffer.from(news.image).toString("base64")}` : null,
     }));
+
     const formattedJobs = jobs.map(job => ({
         ...job,
         logo: job.logo ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}` : null,
     }));
 
-    res.json(new ApiResponse(200, { bannerImage, events: formattedEvents, jobs: formattedJobs, services, news: formattedNews }, "Home retrieved successfully"));
+    res.json(new ApiResponse(200, { bannerImage, events: formattedEvents, jobs: formattedJobs, services: formattedServices, news: formattedNews }, "Home retrieved successfully"));
 });
 
 

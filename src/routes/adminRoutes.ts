@@ -24,6 +24,6 @@ router.delete("/event/:eventId", deleteEvent);
 router.get('/users', getAllUsers);
 
 // Route to get a single user by ID
-router.get('users/:id', getUserById);
+router.get('/users/:id', getUserById);
 
 export default router;
