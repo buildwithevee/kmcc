@@ -7,7 +7,7 @@ const router = express.Router();
 
 
 router.post("/register-event", authenticateUser, registerForEvent);
-router.get("/events/:eventId", getEventById);
+router.get("/events/:eventId", authenticateUser,getEventById);
 router.get("/events", getEvents);
 router.get("/home", homePageData);
 

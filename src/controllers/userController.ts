@@ -10,10 +10,16 @@ export const getEvents = asyncHandler(async (req: Request, res: Response) => {
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalEvents = await prismaClient.event.count();
+    // Count only active events
+    const totalEvents = await prismaClient.event.count({
+        where: { isFinished: false },
+    });
+
+    // Fetch only active events
     const events = await prismaClient.event.findMany({
         skip,
         take: limit,
+        where: { isFinished: false }, // Filter for active events
         orderBy: { createdAt: "desc" },
         select: {
             id: true,
@@ -27,17 +33,41 @@ export const getEvents = asyncHandler(async (req: Request, res: Response) => {
             isFinished: true,
             createdAt: true,
             updatedAt: true,
+            registrations: {
+                take: 3, // Get only 3 registered users per event
+                select: {
+                    user: {
+                        select: {
+                            profileImage: true,
+                        },
+                    },
+                },
+            },
         },
     });
 
-    res.json(new ApiResponse(200, {
+    // Convert binary images to base64 for response
+    const eventsWithImages = events.map((event) => ({
+        ...event,
+        image: event.image ? `data:image/jpeg;base64,${Buffer.from(event.image).toString("base64")}` : null,
+        registrations: event.registrations.map((registration) => ({
+            user: {
+                profileImage: registration.user.profileImage
+                    ? `data:image/jpeg;base64,${Buffer.from(registration.user.profileImage).toString("base64")}`
+                    : null,
+            },
+        })),
+    }));
+
+    res.json({
+        success: true,
         totalEvents,
         currentPage: page,
         totalPages: Math.ceil(totalEvents / limit),
-        data: events
-    }, "Events retrieved successfully"));
+        data: eventsWithImages,
+        message: "Active events retrieved successfully",
+    });
 });
-
 
 export const getEventById = asyncHandler(async (req: AuthRequest, res: Response) => {
     const eventId = Number(req.params.eventId);
@@ -52,9 +82,15 @@ export const getEventById = asyncHandler(async (req: AuthRequest, res: Response)
 
     if (!event) throw new ApiError(404, "Event not found");
 
+    // Convert binary image to base64 if it exists
+    const eventWithBase64Image = {
+        ...event,
+        image: event.image ? `data:image/jpeg;base64,${Buffer.from(event.image).toString("base64")}` : null,
+    };
+
     const isRegistered = event.registrations.some(reg => reg.userId === userId);
 
-    res.json(new ApiResponse(200, { event, isRegistered }, "Event details retrieved successfully"));
+    res.json(new ApiResponse(200, { event: eventWithBase64Image, isRegistered }, "Event details retrieved successfully"));
 });
 
 export const registerForEvent = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -227,7 +263,7 @@ export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response
 
     const { 
         name, email, phoneNumber, gender, // User fields
-        occupation, employer, place, dateOfBirth, bloodGroup, kmccPosition, address // Profile fields
+        occupation, employer, place, dateOfBirth, bloodGroup, address // Profile fields
     } = req.body;
 
     // Convert dateOfBirth to Date object
@@ -252,8 +288,7 @@ export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response
             employer, 
             place, 
             dateOfBirth: formattedDOB, 
-            bloodGroup, 
-            kmccPosition, 
+            bloodGroup,  
             address 
         },
         create: { 
@@ -263,7 +298,6 @@ export const updateProfile = asyncHandler(async (req: AuthRequest, res: Response
             place, 
             dateOfBirth: formattedDOB, 
             bloodGroup, 
-            kmccPosition, 
             address 
         },
     });

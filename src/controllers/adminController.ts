@@ -15,19 +15,19 @@ export const uploadMembership = asyncHandler(async (req: Request, res: Response)
     if (!req.file) {
         throw new ApiError(400, "No file uploaded");
     }
-
+    
     // ✅ Read the Excel File
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-
+    
     // ✅ Convert Excel to JSON
     const membershipData = XLSX.utils.sheet_to_json(sheet);
-
+    
     if (!membershipData.length) {
         throw new ApiError(400, "Uploaded file is empty");
     }
-
+    
     // ✅ Prepare Data for Bulk Insert (Correct Column Mapping)
     const bulkData = membershipData.map((row: any) => ({
         memberId: row["Membership ID"]?.toString(),
@@ -35,18 +35,20 @@ export const uploadMembership = asyncHandler(async (req: Request, res: Response)
         name: row["Name of Member"],
         phoneNumber: row["Phone Number"] || null,
         status: row["Status"] || "active",
+        areaName: row["Area or Mandalam Name"] || null, // Added the new field
     }));
+    
     console.log("length........................", bulkData.length,);
     console.log("Extracted Data from Excel (First 5 Rows):", bulkData.slice(0, 5));
-
+    
     const memberIds = new Set();
     const iqamaNumbers = new Set();
     let duplicateCount = 0;
-
+    
     membershipData.forEach((row: any) => {
         const memberId = row["Membership ID"]?.toString();
         const iqamaNumber = row["Iqama No"]?.toString();
-
+        
         if (memberIds.has(memberId) || iqamaNumbers.has(iqamaNumber)) {
             duplicateCount++;
             console.log(`Duplicate Found: memberId=${memberId}, iqamaNumber=${iqamaNumber}`);
@@ -55,28 +57,28 @@ export const uploadMembership = asyncHandler(async (req: Request, res: Response)
             iqamaNumbers.add(iqamaNumber);
         }
     });
-
+    
     console.log(`Total Duplicates: ${duplicateCount}`);
-
+    
     // ✅ Insert Data (Avoid Duplicates)
     await Promise.all(
         bulkData.map(async (member) => {
             if (!member.memberId || !member.iqamaNumber || !member.name) {
                 return; // Skip invalid rows
             }
-
+            
             const exists = await prismaClient.membership.findFirst({
                 where: {
                     OR: [{ memberId: member.memberId }, { iqamaNumber: member.iqamaNumber }],
                 },
             });
-
+            
             if (!exists) {
                 await prismaClient.membership.create({ data: member });
             }
         })
     );
-
+    
     return res.status(201).json(new ApiResponse(201, null, "Membership data uploaded successfully"));
 });
 

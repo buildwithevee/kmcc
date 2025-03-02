@@ -48,6 +48,7 @@ model Membership {
   name        String
   phoneNumber String?
   status      String
+  areaName      String? // Add this new field
 
   @@unique([memberId, iqamaNumber]) // Ensures uniqueness for verification
   @@map("memberships") // Maps this model to the "memberships" table
