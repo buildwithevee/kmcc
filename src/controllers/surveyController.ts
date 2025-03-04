@@ -362,3 +362,68 @@ export const getSurveyProgress = asyncHandler(async (req: AuthRequest, res: Resp
 
     return res.status(200).json(new ApiResponse(200, { progress }, "Survey progress fetched"));
 });
+
+export const deleteSurvey = asyncHandler(async (req: Request, res: Response) => {
+    const { surveyId } = req.params;
+
+    if (!surveyId) {
+        return res.status(400).json(new ApiResponse(400, {}, "Survey ID is required"));
+    }
+
+    const survey = await prismaClient.survey.findUnique({
+        where: { id: parseInt(surveyId) },
+    });
+
+    if (!survey) {
+        return res.status(404).json(new ApiResponse(404, {}, "Survey not found"));
+    }
+
+    // Delete related data
+    await prismaClient.userSurveyAnswer.deleteMany({
+        where: { surveyId: parseInt(surveyId) },
+    });
+
+    await prismaClient.userSurveyProgress.deleteMany({
+        where: { surveyId: parseInt(surveyId) },
+    });
+
+    await prismaClient.question.deleteMany({
+        where: { surveyId: parseInt(surveyId) },
+    });
+
+    // Delete the survey
+    await prismaClient.survey.delete({
+        where: { id: parseInt(surveyId) },
+    });
+
+    res.status(200).json(new ApiResponse(200, {}, "Survey deleted successfully"));
+});
+
+export const deleteQuestion = asyncHandler(async (req: Request, res: Response) => {
+    const { questionId } = req.params;
+
+    if (!questionId) {
+        return res.status(400).json(new ApiResponse(400, {}, "Question ID is required"));
+    }
+
+    // Check if the question exists
+    const question = await prismaClient.question.findUnique({
+        where: { id: parseInt(questionId) },
+    });
+
+    if (!question) {
+        return res.status(404).json(new ApiResponse(404, {}, "Question not found"));
+    }
+
+    // Delete associated answers first to avoid foreign key constraint errors
+    await prismaClient.userSurveyAnswer.deleteMany({
+        where: { questionId: parseInt(questionId) },
+    });
+
+    // Delete the question
+    await prismaClient.question.delete({
+        where: { id: parseInt(questionId) },
+    });
+
+    res.status(200).json(new ApiResponse(200, {}, "Question deleted successfully"));
+});

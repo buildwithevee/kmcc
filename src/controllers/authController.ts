@@ -35,8 +35,11 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(400, "Invalid memberId or iqamaNumber");
     }
 
-    // Extract the name from Membership table
-    const { name } = existingMember;
+    // Extract the name and areaName from Membership table
+    const { name, areaName } = existingMember;
+
+    // Create the kmccPosition dynamically
+    const kmccPosition = `kmcc ${areaName} member`;
 
     // Check if the user is already registered
     const existingUser = await prismaClient.user.findFirst({
@@ -62,8 +65,13 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
             password: hashedPassword,
             name,
             isSuperAdmin: isFirstUser, // First user is super admin
-            isAdmin: false // Admins will be set manually
-        }
+            isAdmin: false, // Admins will be set manually
+            profile: {
+                create: {
+                    kmccPosition, // Store dynamically created kmccPosition
+                },
+            },
+        },
     });
 
     // Automatically create a survey progress entry for the new user

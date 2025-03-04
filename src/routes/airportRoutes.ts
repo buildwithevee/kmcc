@@ -15,8 +15,8 @@ router.get("/", getAllAirports);
 router.get("/:id", getAirportById);
 
 // Protected routes (Only Admins)
-router.post("/", authenticateUser, addAirport);
-router.put("/:id", authenticateUser, updateAirport);
-router.delete("/:id", authenticateUser, deleteAirport);
+router.post("/",  addAirport);
+router.put("/:id",  updateAirport);
+router.delete("/:id",deleteAirport);
 
 export default router;

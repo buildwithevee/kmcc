@@ -11,7 +11,7 @@ import { bookService, getServiceBookings, updateBookingStatus } from "../control
 
 const router = express.Router();
 
-router.post("/", uploadMiddleware, createService);
+router.post("/new", uploadMiddleware, createService);
 router.get("/", getAllServices);
 router.get("/:id", getServiceById);
 router.put("/:id", uploadMiddleware, updateService);
