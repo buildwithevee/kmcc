@@ -1,4 +1,9 @@
-import express, { Request, Response, NextFunction, ErrorRequestHandler } from "express";
+import express, {
+  Request,
+  Response,
+  NextFunction,
+  ErrorRequestHandler,
+} from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -25,26 +30,26 @@ const app = express();
 app.use(cors());
 
 const limiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 100, // Limit each IP to 100 requests per minute
-    message: {
-        status: 429,
-        message: 'Too many requests. Please try again after an hour.',
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // Limit each IP to 100 requests per minute
+  message: {
+    status: 429,
+    message: "Too many requests. Please try again after an hour.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.use(morgan('dev')); // Logging
+app.use(express.static("/var/www/kmcc-frontend/dist/"));
+app.use(morgan("dev")); // Logging
 app.use(helmet()); // Security
 app.use(compression({ threshold: 1024 }));
 
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello, Secure and Logged World!');
+app.get("/", (req: Request, res: Response) => {
+  res.send("Hello, Secure and Logged World!");
 });
 
 app.use("/api/auth/", authRouter);
@@ -58,33 +63,34 @@ app.use("/api/travel/", travelRouter);
 app.use("/api/airport/", airportRouter);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-    throw new ApiError(404, "Route not found");
+  throw new ApiError(404, "Route not found");
 });
 
 // Error-handling middleware
 app.use(errorHandler as ErrorRequestHandler);
-
+app.get("*", (req, res) => {
+  res.sendFile("/var/www/kmcc-frontend/dist/index.html");
+});
 // Function to start the server
 const startServer = async () => {
-    try {
-        await prismaClient.$connect();
-        console.log("✅ Database connected successfully!");
+  try {
+    await prismaClient.$connect();
+    console.log("✅ Database connected successfully!");
 
-        app.listen(3000, () => {
-            console.log('🚀 Server is running on port 3000');
-        });
-
-    } catch (error) {
-        console.error("❌ Failed to connect to the database:", error);
-        process.exit(1); // Exit process on DB connection failure
-    }
+    app.listen(3000, () => {
+      console.log("🚀 Server is running on port 3000");
+    });
+  } catch (error) {
+    console.error("❌ Failed to connect to the database:", error);
+    process.exit(1); // Exit process on DB connection failure
+  }
 };
 
 // Gracefully handle Prisma shutdown on app termination
 process.on("SIGINT", async () => {
-    await prismaClient.$disconnect();
-    console.log("🛑 Prisma disconnected. Exiting...");
-    process.exit(0);
+  await prismaClient.$disconnect();
+  console.log("🛑 Prisma disconnected. Exiting...");
+  process.exit(0);
 });
 
 startServer();
