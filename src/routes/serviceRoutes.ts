@@ -1,20 +1,27 @@
 import express from "express";
 import {
-    createService,
-    getAllServices,
-    getServiceById,
-    updateService,
-    deleteService,
-    uploadMiddleware
+  createService,
+  getAllServices,
+  getServiceById,
+  updateServiceDetails,
+  updateServiceImage,
+  deleteService,
+  uploadMiddleware,
 } from "../controllers/serviceController";
-import { bookService, getServiceBookings, updateBookingStatus } from "../controllers/bookingController";
+import {
+  bookService,
+  getServiceBookings,
+  updateBookingStatus,
+} from "../controllers/bookingController";
 
 const router = express.Router();
 
+// Service routes
 router.post("/new", uploadMiddleware, createService);
 router.get("/", getAllServices);
 router.get("/:id", getServiceById);
-router.put("/:id", uploadMiddleware, updateService);
+router.put("/:id", updateServiceDetails); // Update service details (except image)
+router.put("/:id/image", uploadMiddleware, updateServiceImage); // Update service image only
 router.delete("/:id", deleteService);
 
 // Booking routes

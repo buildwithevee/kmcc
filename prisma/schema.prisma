@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://root:annu@localhost:3306/kmcc?schema=public"
+  url      = "mysql://ajmal:Annu@123@localhost:3306/kmcc?schema=public"
 }
 
 model User {
@@ -166,8 +166,9 @@ model Service {
   id            Int      @id @default(autoincrement())
   title         String
   location      String
-  availableTime String
-  availableDays Json     @db.Json // Example: ["Monday", "Tuesday", "Wednesday"]
+  startingTime  String // New field
+  stoppingTime  String // New field
+  availableDays String // Changed from Json to String
   image         Bytes?
   phoneNumber   String
   createdAt     DateTime @default(now())
@@ -291,4 +292,14 @@ model Travel {
   user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   fromAirport Airport @relation(fields: [fromAirportId], references: [id], onDelete: Restrict, name: "FromAirport")
   toAirport   Airport @relation(fields: [toAirportId], references: [id], onDelete: Restrict, name: "ToAirport")
+}
+
+model ExclusiveMember {
+  id        Int      @id @default(autoincrement())
+  name      String
+  position  String
+  image     Bytes?
+  priority  Int      @default(0) // New field for ordering
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -22,6 +22,7 @@ import serviceRouter from "./routes/serviceRoutes";
 import surveyRouter from "./routes/surveyRoutes";
 import travelRouter from "./routes/travelRoutes";
 import airportRouter from "./routes/airportRoutes";
+import exclusiveMemberRouter from "./routes/exclusiveMemberRoutes";
 
 dotenv.config();
 
@@ -61,7 +62,7 @@ app.use("/api/services/", serviceRouter);
 app.use("/api/survey/", surveyRouter);
 app.use("/api/travel/", travelRouter);
 app.use("/api/airport/", airportRouter);
-
+app.use("/api/exclusive/", exclusiveMemberRouter);
 app.use((req: Request, res: Response, next: NextFunction) => {
   throw new ApiError(404, "Route not found");
 });
