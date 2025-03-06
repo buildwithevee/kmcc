@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://ajmal:Annu@123@localhost:3306/kmcc?schema=public"
+  url      = "mysql://root:annu@localhost:3306/kmcc?schema=public"
 }
 
 model User {
@@ -302,4 +302,25 @@ model ExclusiveMember {
   priority  Int      @default(0) // New field for ordering
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// schema.prisma
+
+model SubWing {
+  id   Int    @id @default(autoincrement())
+  name String
+  icon Bytes? // Optional icon field to store the icon as a buffer (SVG)
+
+  members SubWingMember[] // Relation to SubWingMember
+}
+
+model SubWingMember {
+  id        Int     @id @default(autoincrement())
+  name      String
+  position  String
+  image     Bytes? // Optional image field to store the member image (JPEG/PNG)
+  subWingId Int // Foreign key reference to SubWing
+  subWing   SubWing @relation(fields: [subWingId], references: [id])
+
+  @@index([subWingId]) // Index on subWingId for performance
 }
