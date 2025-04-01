@@ -7,7 +7,6 @@ import { prismaClient } from "../config/db";
 
 // Multer setup for handling file uploads
 
-// ✅ Create a Sub-Wing
 export const createSubWing = asyncHandler(
   async (req: Request, res: Response) => {
     const { name } = req.body;
@@ -21,6 +20,11 @@ export const createSubWing = asyncHandler(
 
     // Process SVG icon if uploaded
     if (req.file) {
+      // Check if the uploaded file is an SVG
+      if (req.file.mimetype !== "image/svg+xml") {
+        throw new ApiError(400, "Only SVG files are allowed for the icon.");
+      }
+
       iconBuffer = req.file.buffer; // Store SVG as-is (no resizing or compression)
     }
 
@@ -34,10 +38,9 @@ export const createSubWing = asyncHandler(
 
     res
       .status(201)
-      .json(new ApiResponse(201,{}, "Sub-wing created successfully."));
+      .json(new ApiResponse(201, {}, "Sub-wing created successfully."));
   }
 );
-
 // ✅ Add a Member to a Sub-Wing
 export const addSubWingMember = asyncHandler(
   async (req: Request, res: Response) => {
@@ -74,41 +77,63 @@ export const addSubWingMember = asyncHandler(
 
     res
       .status(201)
-      .json(
-        new ApiResponse(201, {}, "Sub-wing member added successfully.")
-      );
+      .json(new ApiResponse(201, {}, "Sub-wing member added successfully."));
   }
 );
 // ✅ Get All Sub-Wings (WITHOUT members)
-export const getAllSubWings = asyncHandler(async (req: Request, res: Response) => {
+export const getAllSubWings = asyncHandler(
+  async (req: Request, res: Response) => {
     const subWings = await prismaClient.subWing.findMany();
-  
+
     const formattedSubWings = subWings.map((subWing) => ({
       ...subWing,
       icon: subWing.icon
-        ? `data:image/svg+xml;base64,${Buffer.from(subWing.icon).toString("base64")}`
+        ? `data:image/svg+xml;base64,${Buffer.from(subWing.icon).toString(
+            "base64"
+          )}`
         : null,
     }));
-  
-    res.status(200).json(new ApiResponse(200, formattedSubWings, "Sub-wings retrieved successfully."));
-  });
-  
-  // ✅ Get Members of a Specific Sub-Wing
-  export const getSubWingMembers = asyncHandler(async (req: Request, res: Response) => {
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          formattedSubWings,
+          "Sub-wings retrieved successfully."
+        )
+      );
+  }
+);
+
+// ✅ Get Members of a Specific Sub-Wing
+export const getSubWingMembers = asyncHandler(
+  async (req: Request, res: Response) => {
     const subWingId = Number(req.params.subWingId);
     if (isNaN(subWingId)) throw new ApiError(400, "Invalid sub-wing ID.");
-  
+
     const members = await prismaClient.subWingMember.findMany({
       where: { subWingId },
       orderBy: { position: "asc" },
     });
-  
+
     const formattedMembers = members.map((member) => ({
       ...member,
       image: member.image
-        ? `data:image/jpeg;base64,${Buffer.from(member.image).toString("base64")}`
+        ? `data:image/jpeg;base64,${Buffer.from(member.image).toString(
+            "base64"
+          )}`
         : null,
     }));
-  
-    res.status(200).json(new ApiResponse(200, formattedMembers, "Sub-wing members retrieved successfully."));
-  });
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          formattedMembers,
+          "Sub-wing members retrieved successfully."
+        )
+      );
+  }
+);

@@ -14,6 +14,12 @@ export const createExclusiveMember = asyncHandler(
       throw new ApiError(400, "Name and position are required.");
     }
 
+    // Convert priority to an integer
+    const priorityInt = parseInt(priority, 10);
+    if (isNaN(priorityInt)) {
+      throw new ApiError(400, "Priority must be a valid number.");
+    }
+
     let imageBuffer: Buffer | null = null;
 
     // Process image if uploaded
@@ -30,7 +36,7 @@ export const createExclusiveMember = asyncHandler(
         name,
         position,
         image: imageBuffer,
-        priority: priority || 0, // Default priority is 0
+        priority: priorityInt, // Use the parsed integer value
       },
     });
 
@@ -46,14 +52,14 @@ export const getAllExclusiveMembers = asyncHandler(
     let { page, limit } = req.query;
 
     const pageNumber = parseInt(page as string) || 1;
-    const pageSize = parseInt(limit as string) || 10;
+    const pageSize = parseInt(limit as string) || 30;
     const skip = (pageNumber - 1) * pageSize;
 
-    // Fetch exclusive members with explicit selection, ordered by priority
+    // Fetch exclusive members ordered by createdAt (ascending)
     const exclusiveMembers = await prismaClient.exclusiveMember.findMany({
       skip,
       take: pageSize,
-      orderBy: { priority: "asc" }, // Order by priority (ascending)
+      orderBy: { createdAt: "asc" }, // Order by createdAt (ascending)
       select: {
         id: true,
         name: true,
@@ -145,7 +151,7 @@ export const updateExclusiveMemberImage = asyncHandler(
     // Process image if uploaded
     if (req.file) {
       imageBuffer = await sharp(req.file.buffer)
-        .resize(163.03992265660187, 231.42804501913355) // Resize to the specified resolution
+        .resize(163, 231) // Resize to the specified resolution
         .jpeg({ quality: 80 }) // Compress image
         .toBuffer();
     }
@@ -185,6 +191,8 @@ export const deleteExclusiveMember = asyncHandler(
 
     res
       .status(200)
-      .json(new ApiResponse(200, null, "Exclusive member deleted successfully."));
+      .json(
+        new ApiResponse(200, null, "Exclusive member deleted successfully.")
+      );
   }
 );
