@@ -7,6 +7,7 @@ import {
   updateServiceImage,
   deleteService,
   uploadMiddleware,
+  updateService,
 } from "../controllers/serviceController";
 import {
   bookService,
@@ -20,8 +21,7 @@ const router = express.Router();
 router.post("/new", uploadMiddleware, createService);
 router.get("/", getAllServices);
 router.get("/:id", getServiceById);
-router.put("/:id", updateServiceDetails); // Update service details (except image)
-router.put("/:id/image", uploadMiddleware, updateServiceImage); // Update service image only
+router.put("/:id", uploadMiddleware, updateService); // Combined update endpoint
 router.delete("/:id", deleteService);
 
 // Booking routes

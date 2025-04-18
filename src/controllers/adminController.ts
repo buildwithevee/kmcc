@@ -93,7 +93,33 @@ export const uploadMembership = asyncHandler(
       );
   }
 );
+// Controller for getting a single membership by ID
+export const getMembershipById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
 
+    // Convert string ID to number
+    const membershipId = parseInt(id);
+    if (isNaN(membershipId)) {
+      throw new ApiError(400, "Invalid membership ID");
+    }
+
+    // Find the membership
+    const membership = await prismaClient.membership.findUnique({
+      where: { id: membershipId },
+    });
+
+    if (!membership) {
+      throw new ApiError(404, "Membership not found");
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, membership, "Membership retrieved successfully")
+      );
+  }
+);
 // ✅ Multer Middleware
 export const uploadMiddleware = upload.single("file");
 
@@ -192,6 +218,73 @@ export const addMembershipManually = asyncHandler(
       .json(new ApiResponse(201, newMember, "Membership added successfully."));
   }
 );
+// Controller for editing membership
+
+export const editMembership = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { memberId, iqamaNumber, name, phoneNumber, status, areaName } =
+      req.body;
+
+    // Convert string ID to number
+    const membershipId = parseInt(id);
+    if (isNaN(membershipId)) {
+      throw new ApiError(400, "Invalid membership ID");
+    }
+
+    // Validate required fields
+    if (!memberId || !iqamaNumber || !name) {
+      throw new ApiError(400, "memberId, iqamaNumber, and name are required.");
+    }
+
+    // Check if membership exists
+    const existingMembership = await prismaClient.membership.findUnique({
+      where: { id: membershipId },
+    });
+
+    if (!existingMembership) {
+      throw new ApiError(404, "Membership not found.");
+    }
+
+    // Check for duplicates with other members (excluding current one)
+    const duplicateCheck = await prismaClient.membership.findFirst({
+      where: {
+        AND: [
+          { id: { not: membershipId } }, // Exclude current membership
+          {
+            OR: [{ memberId }, { iqamaNumber }],
+          },
+        ],
+      },
+    });
+
+    if (duplicateCheck) {
+      throw new ApiError(
+        400,
+        "Another member with the same memberId or iqamaNumber already exists."
+      );
+    }
+
+    // Update membership
+    const updatedMember = await prismaClient.membership.update({
+      where: { id: membershipId },
+      data: {
+        memberId,
+        iqamaNumber,
+        name,
+        phoneNumber: phoneNumber || null,
+        status: status || "active",
+        areaName: areaName || null,
+      },
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedMember, "Membership updated successfully.")
+      );
+  }
+);
 export const uploadBanner = asyncHandler(
   async (req: Request, res: Response) => {
     if (!req.file) {
@@ -273,7 +366,50 @@ export const createEvent = asyncHandler(async (req: Request, res: Response) => {
     new ApiResponse(201, { eventId: event.id }, "Event created successfully")
   );
 });
+export const updateEvent = asyncHandler(async (req: Request, res: Response) => {
+  const { eventId } = req.params;
+  const { title, eventDate, place, timing, highlights, eventType } = req.body;
 
+  // Validate required fields
+  if (!title || !eventDate || !place || !timing) {
+    throw new ApiError(400, "Missing required fields");
+  }
+
+  // Process highlights
+  const highlightsData = Array.isArray(highlights)
+    ? highlights
+    : typeof highlights === "string"
+    ? JSON.parse(highlights)
+    : [];
+
+  // Process image if exists
+  let imageBuffer = null;
+  if (req.file) {
+    imageBuffer = await sharp(req.file.buffer)
+      .resize(800)
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  }
+
+  // Build update data
+  const updateData = {
+    title,
+    eventDate: new Date(eventDate),
+    place,
+    timing,
+    highlights: highlightsData,
+    eventType,
+    ...(imageBuffer && { image: imageBuffer }), // Only include image if it exists
+  };
+
+  // Update event
+  const updatedEvent = await prismaClient.event.update({
+    where: { id: Number(eventId) },
+    data: updateData,
+  });
+
+  res.json(new ApiResponse(200, updatedEvent, "Event updated successfully"));
+});
 export const markAttendance = asyncHandler(
   async (req: Request, res: Response) => {
     const { eventId, userId } = req.body;
@@ -557,4 +693,69 @@ export const getStats = asyncHandler(async (req: Request, res: Response) => {
       "Stats fetched successfully."
     )
   );
+});
+
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  // const adminId = req.user?.id; // Assuming you have authentication middleware
+
+  // 1. Validate input
+  if (!userId) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "User ID is required"));
+  }
+
+  // 2. Check if admin exists and has privileges
+  // const admin = await prismaClient.user.findUnique({
+  //   where: { id: adminId },
+  //   select: { isAdmin: true, isSuperAdmin: true }
+  // });
+
+  // if (!admin || (!admin.isAdmin && !admin.isSuperAdmin)) {
+  //   return res.status(403).json(new ApiResponse(403, null, 'Unauthorized: Admin privileges required'));
+  // }
+
+  // // 3. Prevent self-deletion
+  // if (parseInt(userId) === adminId) {
+  //   return res.status(400).json(new ApiResponse(400, null, 'Admins cannot delete themselves'));
+  // }
+
+  // 4. Check if user exists
+  const userToDelete = await prismaClient.user.findUnique({
+    where: { id: parseInt(userId) },
+  });
+
+  if (!userToDelete) {
+    return res.status(404).json(new ApiResponse(404, null, "User not found"));
+  }
+
+  // // 5. Prevent deleting super admins (unless by another super admin)
+  // if (userToDelete.isSuperAdmin && !admin.isSuperAdmin) {
+  //   return res
+  //     .status(403)
+  //     .json(
+  //       new ApiResponse(
+  //         403,
+  //         null,
+  //         "Only super admins can delete other super admins"
+  //       )
+  //     );
+  // }
+
+  // 6. Perform deletion with transaction (handles related records)
+  await prismaClient.$transaction([
+    // Delete all related records first
+    prismaClient.userSurveyAnswer.deleteMany({
+      where: { userId: parseInt(userId) },
+    }),
+    prismaClient.userSurvey.deleteMany({ where: { userId: parseInt(userId) } }),
+    // Add other relations as needed...
+
+    // Then delete the user
+    prismaClient.user.delete({ where: { id: parseInt(userId) } }),
+  ]);
+
+  // 7. Return success response
+  res.status(200).json(new ApiResponse(200, null, "User deleted successfully"));
 });

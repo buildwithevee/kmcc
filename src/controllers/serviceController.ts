@@ -64,16 +64,22 @@ export const createService = asyncHandler(
 // ✅ Get All Services (Paginated)
 export const getAllServices = asyncHandler(
   async (req: Request, res: Response) => {
-    let { page, limit } = req.query;
+    let { page, limit, search } = req.query;
 
     const pageNumber = parseInt(page as string) || 1;
     const pageSize = parseInt(limit as string) || 10;
+    const searchQuery = (search as string) || "";
     const skip = (pageNumber - 1) * pageSize;
 
-    // Fetch services with explicit selection
+    // Fetch services with optional search filter
     const services = await prismaClient.service.findMany({
       skip,
       take: pageSize,
+      where: {
+        title: {
+          contains: searchQuery,
+        },
+      },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -99,7 +105,15 @@ export const getAllServices = asyncHandler(
         : null,
     }));
 
-    const totalServices = await prismaClient.service.count();
+    // Get total count with the same search filter
+    const totalServices = await prismaClient.service.count({
+      where: {
+        title: {
+          contains: searchQuery,
+        },
+      },
+    });
+
     const totalPages = Math.ceil(totalServices / pageSize);
 
     res.status(200).json(
@@ -111,13 +125,15 @@ export const getAllServices = asyncHandler(
           pageSize,
           totalServices,
           services: formattedServices,
+          searchQuery: searchQuery || null, // include the search query in response
         },
-        "Service list retrieved successfully."
+        searchQuery
+          ? `Service list filtered by '${searchQuery}' retrieved successfully.`
+          : "Service list retrieved successfully."
       )
     );
   }
 );
-
 // ✅ Get Single Service
 export const getServiceById = asyncHandler(
   async (req: Request, res: Response) => {
@@ -235,7 +251,57 @@ export const updateServiceImage = asyncHandler(
       );
   }
 );
+// Update the updateService function to handle both data and image
+export const updateService = asyncHandler(
+  async (req: Request, res: Response) => {
+    const serviceId = Number(req.params.id);
+    if (isNaN(serviceId)) throw new ApiError(400, "Invalid service ID.");
 
+    const {
+      title,
+      location,
+      startingTime,
+      stoppingTime,
+      availableDays,
+      phoneNumber,
+    } = req.body;
+
+    // Check if the service exists
+    const existingService = await prismaClient.service.findUnique({
+      where: { id: serviceId },
+    });
+    if (!existingService) throw new ApiError(404, "Service not found.");
+
+    // Process image if uploaded
+    let imageBuffer: Buffer | null = null;
+    if (req.file) {
+      imageBuffer = await sharp(req.file.buffer)
+        .resize(300, 300)
+        .jpeg({ quality: 80 })
+        .toBuffer();
+    }
+
+    // Update the service
+    const updatedService = await prismaClient.service.update({
+      where: { id: serviceId },
+      data: {
+        title: title?.trim() || existingService.title,
+        location: location?.trim() || existingService.location,
+        startingTime: startingTime || existingService.startingTime,
+        stoppingTime: stoppingTime || existingService.stoppingTime,
+        availableDays: availableDays || existingService.availableDays,
+        phoneNumber: phoneNumber?.trim() || existingService.phoneNumber,
+        image: imageBuffer || existingService.image,
+      },
+    });
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(200, updatedService, "Service updated successfully.")
+      );
+  }
+);
 // ✅ Delete Service
 export const deleteService = asyncHandler(
   async (req: Request, res: Response) => {

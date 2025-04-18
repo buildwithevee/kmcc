@@ -39,6 +39,7 @@ model User {
   surveyProgress    UserSurveyProgress[] // ✅ Added relation
   UserSurveyAnswer  UserSurveyAnswer[]
   Travel            Travel[]
+  goldLots          GoldInvestmentLot[]
 }
 
 model Membership {
@@ -156,9 +157,10 @@ model News {
   type        String
   heading     String
   author      String
-  body        String   @db.Text // ✅ Change this from String to Text
+  body        String   @db.Text
   image       Bytes
   authorImage Bytes
+  timeToRead  String // Added this field
   createdAt   DateTime @default(now())
 }
 
@@ -214,6 +216,7 @@ model Question {
   options  Json? // ✅ Stores multiple-choice options
   image    Bytes
   required Boolean @default(true)
+  position Int     @default(0)
 
   survey           Survey             @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   responses        Response[]
@@ -297,14 +300,12 @@ model Travel {
 model ExclusiveMember {
   id        Int      @id @default(autoincrement())
   name      String
-  position  String
+  position  String // Member's role in organization
   image     Bytes?
-  priority  Int      @default(0) // New field for ordering
+  priority  Int      @default(0) // Used for display ordering
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-
 
 model SubWing {
   id   Int    @id @default(autoincrement())
@@ -323,4 +324,91 @@ model SubWingMember {
   subWing   SubWing @relation(fields: [subWingId], references: [id])
 
   @@index([subWingId]) // Index on subWingId for performance
+}
+
+//investment programs..............................
+model GoldInvestmentProgram {
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String?
+  isActive       Boolean  @default(true)
+  currentCycleId Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cycles GoldInvestmentCycle[]
+
+  @@map("gold_programs")
+}
+
+model GoldInvestmentCycle {
+  id        Int       @id @default(autoincrement())
+  programId Int
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  program     GoldInvestmentProgram       @relation(fields: [programId], references: [id])
+  lots        GoldInvestmentLot[]
+  monthlyData GoldInvestmentMonthlyData[]
+
+  @@map("gold_cycles")
+}
+
+model GoldInvestmentLot {
+  id        Int      @id @default(autoincrement())
+  cycleId   Int
+  userId    Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  cycle    GoldInvestmentCycle     @relation(fields: [cycleId], references: [id])
+  user     User                    @relation(fields: [userId], references: [id])
+  payments GoldInvestmentPayment[]
+  winners  GoldInvestmentWinner[]
+
+  @@map("gold_lots")
+}
+
+model GoldInvestmentMonthlyData {
+  id        Int      @id @default(autoincrement())
+  cycleId   Int
+  month     Int
+  year      Int
+  createdAt DateTime @default(now())
+
+  cycle    GoldInvestmentCycle     @relation(fields: [cycleId], references: [id])
+  payments GoldInvestmentPayment[]
+  winners  GoldInvestmentWinner[]
+
+  @@map("gold_monthly_data")
+}
+
+model GoldInvestmentPayment {
+  id            Int       @id @default(autoincrement())
+  monthlyDataId Int
+  lotId         Int
+  isPaid        Boolean   @default(false)
+  paymentDate   DateTime?
+  createdAt     DateTime  @default(now())
+
+  monthlyData GoldInvestmentMonthlyData @relation(fields: [monthlyDataId], references: [id])
+  lot         GoldInvestmentLot         @relation(fields: [lotId], references: [id])
+
+  @@unique([monthlyDataId, lotId])
+  @@map("gold_payments")
+}
+
+model GoldInvestmentWinner {
+  id            Int      @id @default(autoincrement())
+  monthlyDataId Int
+  lotId         Int
+  createdAt     DateTime @default(now())
+
+  monthlyData GoldInvestmentMonthlyData @relation(fields: [monthlyDataId], references: [id])
+  lot         GoldInvestmentLot         @relation(fields: [lotId], references: [id])
+
+  @@unique([monthlyDataId, lotId])
+  @@map("gold_winners")
 }

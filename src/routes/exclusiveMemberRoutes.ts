@@ -2,27 +2,18 @@ import express from "express";
 import {
   createExclusiveMember,
   getAllExclusiveMembers,
-  updateExclusiveMemberDetails,
-  updateExclusiveMemberImage,
+  updateExclusiveMember,
   deleteExclusiveMember,
+  reorderExclusiveMembers,
 } from "../controllers/exclusiveMemberController";
 import { upload } from "../helpers/upload";
 
 const router = express.Router();
 
-// Exclusive Member Routes
-router.post(
-  "/",
-  upload.single("image"),
-  createExclusiveMember
-);
+router.post("/", upload.single("image"), createExclusiveMember);
 router.get("/", getAllExclusiveMembers);
-router.put("/:id", updateExclusiveMemberDetails);
-router.patch(
-  "/:id/image",
-  upload.single("image"),
-  updateExclusiveMemberImage
-);
+router.put("/:id", upload.single("image"), updateExclusiveMember);
 router.delete("/:id", deleteExclusiveMember);
+router.post("/reorder", reorderExclusiveMembers);
 
 export default router;
