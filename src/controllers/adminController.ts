@@ -492,13 +492,14 @@ export const updateEventImage = asyncHandler(
 
 export const getEventById = asyncHandler(
   async (req: Request, res: Response) => {
-    const { eventId } = req.params; // Get event ID from URL params
+    const { eventId } = req.params;
 
+    // Fetch the requested event with registrations
     const event = await prismaClient.event.findUnique({
       where: { id: Number(eventId) },
       include: {
         registrations: {
-          include: { user: true }, // Fetch registered users
+          include: { user: true },
         },
       },
     });
@@ -507,7 +508,19 @@ export const getEventById = asyncHandler(
       throw new ApiError(404, "Event not found");
     }
 
-    // Convert image to Base64 if exists
+    // Fetch related events (excluding the current one)
+    const relatedEvents = await prismaClient.event.findMany({
+      where: {
+        NOT: { id: Number(eventId) }, // Exclude current event
+        eventDate: { gte: new Date() }, // Only future events
+        // Optional: Add more filters for better relevance
+        // eventType: event.eventType, // Same type as main event
+      },
+      take: 3, // Limit to 3 related events
+      orderBy: { eventDate: "asc" }, // Sort by nearest date
+    });
+
+    // Convert images to Base64 for both main and related events
     const eventWithImage = {
       ...event,
       image: event.image
@@ -517,8 +530,22 @@ export const getEventById = asyncHandler(
         : null,
     };
 
+    const relatedEventsWithImages = relatedEvents.map((ev) => ({
+      ...ev,
+      image: ev.image
+        ? `data:image/jpeg;base64,${Buffer.from(ev.image).toString("base64")}`
+        : null,
+    }));
+
     res.json(
-      new ApiResponse(200, eventWithImage, "Event retrieved successfully")
+      new ApiResponse(
+        200,
+        {
+          event: eventWithImage,
+          relatedEvents: relatedEventsWithImages,
+        },
+        "Event retrieved successfully with related events"
+      )
     );
   }
 );
@@ -615,6 +642,8 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
       ? Buffer.from(user.profileImage).toString("base64")
       : null,
   }));
+
+  console.log(users, "users");
 
   res.json(
     new ApiResponse(

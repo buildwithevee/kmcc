@@ -4,20 +4,25 @@ import {
   addSubWingMember,
   getAllSubWings,
   getSubWingMembers,
+  getSubWingDetails,
 } from "../controllers/subwingController";
 import { upload } from "../helpers/upload";
 
 const router = Router();
 
-// ✅ Create a Sub-Wing (with optional SVG icon)
-router.post("/", upload.single("file"), createSubWing);
+// Create sub-wing with optional icon
+router.post("/", upload.single("icon"), createSubWing);
 
-// ✅ Get All Sub-Wings with Members
+// Get all sub-wings
 router.get("/", getAllSubWings);
 
-// ✅ Add a Member to a Sub-Wing (with optional image)
-router.post("/:subWingId/members", upload.single("file"), addSubWingMember);
+// Get specific sub-wing details
+router.get("/:subWingId", getSubWingDetails);
 
-// ✅ Get Members of a Specific Sub-Wing
+// Add member to sub-wing with optional image
+router.post("/:subWingId/members", upload.single("image"), addSubWingMember);
+
+// Get members of specific sub-wing
 router.get("/:subWingId/members", getSubWingMembers);
+
 export default router;

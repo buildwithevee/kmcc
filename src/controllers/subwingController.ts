@@ -1,38 +1,46 @@
 import { Request, Response } from "express";
-
 import sharp from "sharp";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse, ApiError } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
 
-// Multer setup for handling file uploads
-
 export const createSubWing = asyncHandler(
   async (req: Request, res: Response) => {
-    const { name } = req.body;
+    const {
+      name,
+      backgroundColor = "#FFFFFF",
+      mainColor = "#000000",
+    } = req.body;
 
-    // Validate required fields
     if (!name) {
       throw new ApiError(400, "Sub-wing name is required.");
     }
 
-    let iconBuffer: Buffer | null = null;
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (
+      !hexColorRegex.test(backgroundColor) ||
+      !hexColorRegex.test(mainColor)
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid color format. Use hex codes like #FFFFFF or #FFF."
+      );
+    }
 
-    // Process SVG icon if uploaded
+    let iconBuffer: Buffer | null = null;
     if (req.file) {
-      // Check if the uploaded file is an SVG
       if (req.file.mimetype !== "image/svg+xml") {
         throw new ApiError(400, "Only SVG files are allowed for the icon.");
       }
-
-      iconBuffer = req.file.buffer; // Store SVG as-is (no resizing or compression)
+      iconBuffer = req.file.buffer;
     }
 
-    // Create the sub-wing in the database
-    const subWing = await prismaClient.subWing.create({
+    await prismaClient.subWing.create({
       data: {
         name,
         icon: iconBuffer,
+        backgroundColor,
+        mainColor,
       },
     });
 
@@ -41,13 +49,12 @@ export const createSubWing = asyncHandler(
       .json(new ApiResponse(201, {}, "Sub-wing created successfully."));
   }
 );
-// ✅ Add a Member to a Sub-Wing
+
 export const addSubWingMember = asyncHandler(
   async (req: Request, res: Response) => {
     const { name, position } = req.body;
     const subWingId = Number(req.params.subWingId);
 
-    // Validate required fields
     if (!name || !position || isNaN(subWingId)) {
       throw new ApiError(
         400,
@@ -56,17 +63,14 @@ export const addSubWingMember = asyncHandler(
     }
 
     let imageBuffer: Buffer | null = null;
-
-    // Process image if uploaded
     if (req.file) {
       imageBuffer = await sharp(req.file.buffer)
-        .resize(163, 231) // Resize to specified resolution (no decimals)
-        .jpeg({ quality: 80 }) // Compress image
+        .resize(163, 231)
+        .jpeg({ quality: 80 })
         .toBuffer();
     }
 
-    // Create the sub-wing member in the database
-    const member = await prismaClient.subWingMember.create({
+    await prismaClient.subWingMember.create({
       data: {
         name,
         position,
@@ -77,62 +81,278 @@ export const addSubWingMember = asyncHandler(
 
     res
       .status(201)
-      .json(new ApiResponse(201, {}, "Sub-wing member added successfully."));
+      .json(new ApiResponse(201, {}, "Member added successfully."));
   }
 );
-// ✅ Get All Sub-Wings (WITHOUT members)
+const bufferToSvgDataUrl = (
+  buffer: Buffer | Uint8Array | null
+): string | null => {
+  if (!buffer) return null;
+
+  try {
+    // First try UTF-8 URI encoding (works best for SVGs)
+    try {
+      const svgString =
+        buffer instanceof Buffer
+          ? buffer.toString("utf8")
+          : new TextDecoder().decode(buffer);
+      if (!svgString.includes("<svg") || !svgString.includes("</svg>")) {
+        console.warn("Buffer does not contain valid SVG markup");
+        throw new Error("Invalid SVG content");
+      }
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        svgString
+      )}`;
+    } catch (error) {
+      const uriError = error as Error;
+      console.log("Falling back to base64 encoding due to:", uriError.message);
+      // Fallback to base64 if URI encoding fails
+      const base64String =
+        buffer instanceof Buffer
+          ? buffer.toString("base64")
+          : Buffer.from(buffer).toString("base64");
+      return `data:image/svg+xml;base64,${base64String}`;
+    }
+  } catch (error) {
+    console.error("Failed to convert icon buffer to data URL:", error);
+    return null;
+  }
+};
+
 export const getAllSubWings = asyncHandler(
   async (req: Request, res: Response) => {
-    const subWings = await prismaClient.subWing.findMany();
+    try {
+      // Debug: Log the start of the operation
+      console.log("[getAllSubWings] Fetching subwings from database");
 
-    const formattedSubWings = subWings.map((subWing) => ({
-      ...subWing,
-      icon: subWing.icon
-        ? `data:image/svg+xml;base64,${Buffer.from(subWing.icon).toString(
-            "base64"
-          )}`
-        : null,
-    }));
+      const subWings = await prismaClient.subWing.findMany({
+        select: {
+          id: true,
+          name: true,
+          backgroundColor: true,
+          mainColor: true,
+          icon: true,
+          _count: {
+            select: { members: true },
+          },
+        },
+      });
 
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          formattedSubWings,
-          "Sub-wings retrieved successfully."
-        )
-      );
+      // Debug: Log raw database results
+      console.log(`[getAllSubWings] Found ${subWings.length} subwings`);
+      subWings.forEach((sw, index) => {
+        console.log(`[Subwing ${index + 1}] ID: ${sw.id}, Name: ${sw.name}`);
+        console.log(
+          `  Icon exists: ${!!sw.icon}, Type: ${sw.icon?.constructor?.name}`
+        );
+        if (sw.icon) {
+          console.log(`  Icon length: ${sw.icon.length} bytes`);
+          const buffer =
+            sw.icon instanceof Buffer ? sw.icon : Buffer.from(sw.icon);
+          console.log(
+            `  First 20 bytes: ${buffer.subarray(0, 20).toString("hex")}`
+          );
+        }
+      });
+
+      const formattedSubWings = subWings.map((subWing) => {
+        // Convert icon buffer to data URL
+        const iconDataUrl = bufferToSvgDataUrl(subWing.icon);
+
+        // Debug log conversion results
+        if (subWing.icon && !iconDataUrl) {
+          console.warn(
+            `[getAllSubWings] Failed to convert icon for subwing ${subWing.id}`
+          );
+        }
+
+        return {
+          id: subWing.id,
+          name: subWing.name,
+          backgroundColor: subWing.backgroundColor,
+          mainColor: subWing.mainColor,
+          icon: iconDataUrl,
+          memberCount: subWing._count.members,
+          // Include debug info in development
+          ...(process.env.NODE_ENV === "development" && {
+            _debug: {
+              iconBufferInfo: subWing.icon
+                ? {
+                    length: subWing.icon.length,
+                    startsWith:
+                      subWing.icon instanceof Buffer
+                        ? subWing.icon.subarray(0, 20).toString("hex")
+                        : Buffer.from(subWing.icon)
+                            .subarray(0, 20)
+                            .toString("hex"),
+                  }
+                : null,
+            },
+          }),
+        };
+      });
+
+      // Debug: Log final output
+      console.log("[getAllSubWings] Final response data:", {
+        count: formattedSubWings.length,
+        sampleItem:
+          formattedSubWings.length > 0
+            ? {
+                ...formattedSubWings[0],
+                icon: formattedSubWings[0].icon?.substring(0, 50) + "...",
+              }
+            : null,
+      });
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            formattedSubWings,
+            "Sub-wings retrieved successfully."
+          )
+        );
+    } catch (error) {
+      console.error("[getAllSubWings] Critical error:", error);
+      throw error; // Let the asyncHandler handle it
+    }
   }
 );
-
-// ✅ Get Members of a Specific Sub-Wing
 export const getSubWingMembers = asyncHandler(
   async (req: Request, res: Response) => {
     const subWingId = Number(req.params.subWingId);
     if (isNaN(subWingId)) throw new ApiError(400, "Invalid sub-wing ID.");
 
-    const members = await prismaClient.subWingMember.findMany({
-      where: { subWingId },
-      orderBy: { position: "asc" },
+    try {
+      console.log(
+        `[getSubWingMembers] Fetching members for subWingId: ${subWingId}`
+      );
+
+      const members = await prismaClient.subWingMember.findMany({
+        where: { subWingId },
+        orderBy: { position: "asc" },
+      });
+
+      console.log(`[getSubWingMembers] Found ${members.length} members`);
+
+      const formattedMembers = members.map((member) => {
+        let imageDataUrl = null;
+
+        if (member.image) {
+          try {
+            // Handle both Buffer and Uint8Array cases
+            const imageBuffer =
+              member.image instanceof Buffer
+                ? member.image
+                : Buffer.from(member.image);
+
+            imageDataUrl = `data:image/jpeg;base64,${imageBuffer.toString(
+              "base64"
+            )}`;
+
+            // Debug log successful conversion
+            console.log(`[Member ${member.id}] Image converted successfully`, {
+              originalType: member.image.constructor.name,
+              bufferLength: imageBuffer.length,
+              dataUrlPrefix: imageDataUrl.substring(0, 30) + "...",
+            });
+          } catch (error) {
+            console.error(
+              `[Member ${member.id}] Failed to convert image:`,
+              error
+            );
+          }
+        }
+
+        return {
+          id: member.id,
+          name: member.name,
+          position: member.position,
+          subWingId: member.subWingId,
+          image: imageDataUrl,
+          // Include debug info in development
+          ...(process.env.NODE_ENV === "development" && {
+            _debug: {
+              imageBufferInfo: member.image
+                ? {
+                    type: member.image.constructor.name,
+                    length: member.image.length,
+                    startsWith:
+                      member.image instanceof Buffer
+                        ? member.image
+                        : Buffer.from(member.image)
+                            .subarray(0, 10)
+                            .toString("hex"),
+                  }
+                : null,
+            },
+          }),
+        };
+      });
+
+      res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            formattedMembers,
+            "Members retrieved successfully."
+          )
+        );
+    } catch (error) {
+      console.error("[getSubWingMembers] Critical error:", error);
+      throw new ApiError(500, "Failed to retrieve members");
+    }
+  }
+);
+
+export const getSubWingDetails = asyncHandler(
+  async (req: Request, res: Response) => {
+    const subWingId = Number(req.params.subWingId);
+    if (isNaN(subWingId)) throw new ApiError(400, "Invalid sub-wing ID.");
+
+    const subWing = await prismaClient.subWing.findUnique({
+      where: { id: subWingId },
+      include: {
+        members: {
+          orderBy: { position: "asc" },
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            image: true,
+          },
+        },
+      },
     });
 
-    const formattedMembers = members.map((member) => ({
-      ...member,
-      image: member.image
-        ? `data:image/jpeg;base64,${Buffer.from(member.image).toString(
-            "base64"
-          )}`
-        : null,
-    }));
+    if (!subWing) {
+      throw new ApiError(404, "Sub-wing not found.");
+    }
+
+    const formattedSubWing = {
+      ...subWing,
+      icon:
+        subWing.icon instanceof Buffer
+          ? `data:image/svg+xml;base64,${subWing.icon.toString("base64")}`
+          : null,
+      members: subWing.members.map((member) => ({
+        ...member,
+        image:
+          member.image instanceof Buffer
+            ? `data:image/jpeg;base64,${member.image.toString("base64")}`
+            : null,
+      })),
+    };
 
     res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          formattedMembers,
-          "Sub-wing members retrieved successfully."
+          formattedSubWing,
+          "Sub-wing details retrieved successfully."
         )
       );
   }

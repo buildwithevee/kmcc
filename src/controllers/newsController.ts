@@ -123,7 +123,6 @@ export const getNewsById = asyncHandler(async (req: Request, res: Response) => {
     const relatedNews = await prismaClient.news.findMany({
       where: {
         NOT: { id: newsId }, // Exclude current news
-        type: news.type, // Same category
       },
       take: 3, // Limit to 3 related articles
       select: {
@@ -133,6 +132,8 @@ export const getNewsById = asyncHandler(async (req: Request, res: Response) => {
         timeToRead: true,
         createdAt: true,
         image: true,
+        author: true,
+        authorImage: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -150,6 +151,11 @@ export const getNewsById = asyncHandler(async (req: Request, res: Response) => {
         ...item,
         image: item.image
           ? `data:image/jpeg;base64,${Buffer.from(item.image).toString(
+              "base64"
+            )}`
+          : null,
+        authorImage: item.authorImage
+          ? `data:image/jpeg;base64,${Buffer.from(item.authorImage).toString(
               "base64"
             )}`
           : null,

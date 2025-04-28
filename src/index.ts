@@ -24,6 +24,7 @@ import travelRouter from "./routes/travelRoutes";
 import airportRouter from "./routes/airportRoutes";
 import exclusiveMemberRouter from "./routes/exclusiveMemberRoutes";
 import subwingRouter from "./routes/subwindRoutes";
+import bookRouter from "./routes/bookRoutes";
 
 dotenv.config();
 
@@ -63,15 +64,17 @@ app.use("/api/services/", serviceRouter);
 app.use("/api/survey/", surveyRouter);
 app.use("/api/travel/", travelRouter);
 app.use("/api/airport/", airportRouter);
-app.use("/api/exclusive/", exclusiveMemberRouter);
+app.use("/api/exclusive-members/", exclusiveMemberRouter);
 app.use("/api/sub-wing/", subwingRouter);
+app.use("/api/book/", bookRouter);
 
+app.use(errorHandler as ErrorRequestHandler);
 app.use((req: Request, res: Response, next: NextFunction) => {
   throw new ApiError(404, "Route not found");
 });
 
 // Error-handling middleware
-app.use(errorHandler as ErrorRequestHandler);
+
 app.get("*", (req, res) => {
   res.sendFile("/var/www/kmcc-frontend/dist/index.html");
 });
