@@ -25,7 +25,11 @@ import express from "express";
 const router = express.Router();
 
 // Upload Membership File
-router.post("/upload-membership", uploadMiddleware, uploadMembership);
+router.post(
+  "/upload-membership",
+  uploadMiddleware,
+  uploadMembership
+);
 router.post("/memberships", addMembershipManually);
 router.put("/memberships/:id", editMembership);
 router.get("/memberships/:id", getMembershipById); // New endpoint

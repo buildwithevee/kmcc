@@ -5,13 +5,17 @@ import * as XLSX from "xlsx";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
-import { upload } from "../helpers/upload";
+import multer from "multer";
 import sharp from "sharp";
 
 // ✅ Controller for Importing Membership Data from Excel
 export const uploadMembership = asyncHandler(
   async (req: Request, res: Response) => {
+    console.log("here");
+
     if (!req.file) {
+      console.log("this");
+
       throw new ApiError(400, "No file uploaded");
     }
 
@@ -120,6 +124,10 @@ export const getMembershipById = asyncHandler(
       );
   }
 );
+
+const storage = multer.memoryStorage(); // use memory for buffer
+
+export const upload = multer({ storage });
 // ✅ Multer Middleware
 export const uploadMiddleware = upload.single("file");
 

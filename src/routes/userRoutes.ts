@@ -1,4 +1,5 @@
-import { upload } from "../helpers/upload";
+
+import { upload } from "../controllers/adminController";
 import { getEventById, getEvents, getProfile, homePageData, registerForEvent, updateProfile, uploadAvatar } from "../controllers/userController";
 import { authenticateUser } from "../middlewares/authMiddleware";
 import express from "express";

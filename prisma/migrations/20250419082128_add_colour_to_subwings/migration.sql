@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `subwing` ADD COLUMN `backgroundColor` VARCHAR(191) NOT NULL DEFAULT '#FFFFFF',
-    ADD COLUMN `mainColor` VARCHAR(191) NOT NULL DEFAULT '#000000';

@@ -33,12 +33,14 @@ model User {
   profile           Profile?
   contactInfo       ContactInfo?
   EventRegistration EventRegistration[]
-  serviceBookings   ServiceBooking[]
-  UserSurvey        UserSurvey[]
-  responses         Response[]
-  surveyProgress    UserSurveyProgress[] // ✅ Added relation
-  UserSurveyAnswer  UserSurveyAnswer[]
-  Travel            Travel[]
+
+  UserSurvey       UserSurvey[]
+  responses        Response[]
+  surveyProgress   UserSurveyProgress[] // ✅ Added relation
+  UserSurveyAnswer UserSurveyAnswer[]
+  Travel           Travel[]
+
+  GoldLot GoldLot[]
 }
 
 model Membership {
@@ -175,23 +177,7 @@ model Service {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  bookings ServiceBooking[] // One service can have multiple bookings
-
   @@map("services")
-}
-
-model ServiceBooking {
-  id        Int      @id @default(autoincrement())
-  serviceId Int
-  userId    Int
-  date      DateTime
-  status    String   @default("pending") // Pending, Confirmed, Cancelled
-  createdAt DateTime @default(now())
-
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("service_bookings")
 }
 
 model Survey {
@@ -335,4 +321,83 @@ model Book {
   coverImage  Bytes // Store the book cover image
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model GoldProgram {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  isActive    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lots    GoldLot[]
+  winners GoldWinner[]
+}
+
+model GoldLot {
+  id        Int      @id @default(autoincrement())
+  programId Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  // Relations
+  program  GoldProgram   @relation(fields: [programId], references: [id])
+  user     User          @relation(fields: [userId], references: [id])
+  payments GoldPayment[]
+  winners  GoldWinner[]
+}
+
+model GoldPayment {
+  id        Int       @id @default(autoincrement())
+  lotId     Int
+  year      Int
+  month     Int
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  lot GoldLot @relation(fields: [lotId], references: [id])
+
+  @@unique([lotId, year, month], name: "lotId_year_month")
+}
+
+model GoldWinner {
+  id          Int      @id @default(autoincrement())
+  programId   Int
+  lotId       Int
+  year        Int
+  month       Int
+  prizeAmount Float?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  program GoldProgram @relation(fields: [programId], references: [id])
+  lot     GoldLot     @relation(fields: [lotId], references: [id])
+}
+
+model ConstitutionCommittee {
+  id          Int                           @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+  members     ConstitutionCommitteeMember[]
+}
+
+model ConstitutionCommitteeMember {
+  id          Int                   @id @default(autoincrement())
+  name        String
+  position    String
+  image       Bytes? // Optional image field
+  committeeId Int // Foreign key reference to ConstitutionCommittee
+  committee   ConstitutionCommittee @relation(fields: [committeeId], references: [id])
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([committeeId]) // Index on committeeId for performance
 }
