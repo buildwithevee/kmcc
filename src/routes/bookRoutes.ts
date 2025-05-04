@@ -14,7 +14,7 @@ import { authenticateUser } from "../middlewares/authMiddleware";
 const router = express.Router();
 router.get("/recent/books", getRecentBooks);
 // Apply authentication middleware to all routes
-router.use(authenticateUser);
+// router.use(authenticateUser);
 
 // Create a book
 router.post(

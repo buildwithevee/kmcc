@@ -418,20 +418,95 @@ export const updateEvent = asyncHandler(async (req: Request, res: Response) => {
 
   res.json(new ApiResponse(200, updatedEvent, "Event updated successfully"));
 });
-export const markAttendance = asyncHandler(
+export const getEventRegistrations = asyncHandler(
   async (req: Request, res: Response) => {
-    const { eventId, userId } = req.body;
+    const { eventId } = req.params;
 
-    const updated = await prismaClient.eventRegistration.updateMany({
-      where: { eventId, userId },
-      data: { isAttended: true },
+    const registrations = await prismaClient.eventRegistration.findMany({
+      where: { eventId: Number(eventId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            memberId: true,
+            phoneNumber: true,
+            profileImage: true,
+          },
+        },
+      },
     });
 
-    if (updated.count === 0) {
-      throw new ApiError(404, "User not found in this event");
+    // Convert profile images to base64
+    const formattedRegistrations = registrations.map((reg) => ({
+      ...reg,
+      user: {
+        ...reg.user,
+        profileImage: reg.user.profileImage
+          ? Buffer.from(reg.user.profileImage).toString("base64")
+          : null,
+      },
+    }));
+
+    res.json(
+      new ApiResponse(
+        200,
+        { registrations: formattedRegistrations },
+        "Event registrations fetched successfully"
+      )
+    );
+  }
+);
+
+export const markAttendance = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params;
+    const { userId, isAttended } = req.body;
+
+    // Find the specific registration using the composite key
+    const registration = await prismaClient.eventRegistration.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: Number(eventId),
+          userId: Number(userId),
+        },
+      },
+    });
+
+    if (!registration) {
+      throw new ApiError(404, "Registration not found");
     }
 
-    res.json(new ApiResponse(200, null, "Attendance marked successfully"));
+    // Update the attendance status
+    const updatedRegistration = await prismaClient.eventRegistration.update({
+      where: {
+        eventId_userId: {
+          eventId: Number(eventId),
+          userId: Number(userId),
+        },
+      },
+      data: {
+        isAttended: Boolean(isAttended),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            memberId: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+
+    res.json(
+      new ApiResponse(
+        200,
+        updatedRegistration,
+        "Attendance updated successfully"
+      )
+    );
   }
 );
 
@@ -796,3 +871,114 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   // 7. Return success response
   res.status(200).json(new ApiResponse(200, null, "User deleted successfully"));
 });
+
+// Add this new controller to your existing adminController file
+export const updateUserWithProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const {
+      // User fields
+      name,
+      email,
+      phoneNumber,
+      isAdmin,
+      isSuperAdmin,
+      // Profile fields
+      occupation,
+      employer,
+      place,
+      dateOfBirth,
+      bloodGroup,
+      kmccPosition,
+      address,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !phoneNumber) {
+      throw new ApiError(400, "Name and phone number are required");
+    }
+
+    // Check if user exists
+    const existingUser = await prismaClient.user.findUnique({
+      where: { id: Number(id) },
+      include: { profile: true },
+    });
+
+    if (!existingUser) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // Process profile image if exists
+    let profileImageBuffer = null;
+    if (req.file) {
+      profileImageBuffer = await sharp(req.file.buffer)
+        .resize(800)
+        .jpeg({ quality: 80 })
+        .toBuffer();
+    }
+
+    // Update user and profile in a transaction
+    const [updatedUser] = await prismaClient.$transaction([
+      prismaClient.user.update({
+        where: { id: Number(id) },
+        data: {
+          name,
+          email: email || null,
+          phoneNumber,
+          isAdmin: isAdmin === "true",
+          isSuperAdmin: isSuperAdmin === "true",
+          ...(profileImageBuffer && { profileImage: profileImageBuffer }),
+        },
+        include: { profile: true },
+      }),
+      prismaClient.profile.upsert({
+        where: { userId: Number(id) },
+        update: {
+          occupation: occupation || null,
+          employer: employer || null,
+          place: place || null,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          bloodGroup: bloodGroup || null,
+          kmccPosition: kmccPosition || null,
+          address: address || null,
+        },
+        create: {
+          userId: Number(id),
+          occupation: occupation || null,
+          employer: employer || null,
+          place: place || null,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          bloodGroup: bloodGroup || null,
+          kmccPosition: kmccPosition || null,
+          address: address || null,
+        },
+      }),
+    ]);
+
+    // Fetch the updated profile separately to ensure we get all fields
+    const updatedProfile = await prismaClient.profile.findUnique({
+      where: { userId: Number(id) },
+    });
+
+    res.json(
+      new ApiResponse(
+        200,
+        {
+          user: {
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            phoneNumber: updatedUser.phoneNumber,
+            isAdmin: updatedUser.isAdmin,
+            isSuperAdmin: updatedUser.isSuperAdmin,
+            profileImage: updatedUser.profileImage
+              ? Buffer.from(updatedUser.profileImage).toString("base64")
+              : null,
+          },
+          profile: updatedProfile,
+        },
+        "User and profile updated successfully"
+      )
+    );
+  }
+);

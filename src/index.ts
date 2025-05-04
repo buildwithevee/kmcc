@@ -27,6 +27,7 @@ import subwingRouter from "./routes/subwindRoutes";
 import bookRouter from "./routes/bookRoutes";
 import goldRouter from "./routes/goldRoutes";
 import constitutionCommitteeRouter from "./routes/constitutionCommitteeRoutes";
+import investmentRouter from "./routes/investmentRoutes";
 
 dotenv.config();
 
@@ -71,6 +72,7 @@ app.use("/api/sub-wing/", subwingRouter);
 app.use("/api/book/", bookRouter);
 app.use("/api/gold/", goldRouter);
 app.use("/api/constitution-committees/", constitutionCommitteeRouter);
+app.use("/api/investments/", investmentRouter);
 
 app.use(errorHandler as ErrorRequestHandler);
 app.use((req: Request, res: Response, next: NextFunction) => {

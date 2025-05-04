@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient as prisma } from "../config/db";
-
+import * as XLSX from "xlsx";
 // ===================== PROGRAM LIFECYCLE =====================
 export const startGoldProgram = asyncHandler(
   async (req: Request, res: Response) => {
@@ -89,14 +89,15 @@ export const getProgramDetails = asyncHandler(
         lots: {
           include: {
             user: true,
-            payments: { orderBy: { month: "asc" } },
-            winners: true,
+            payments: { orderBy: [{ year: "asc" }, { month: "asc" }] }, // Updated
+            winners: { orderBy: [{ year: "asc" }, { month: "asc" }] }, // Updated
           },
         },
         winners: {
           include: {
             lot: { include: { user: true } },
           },
+          orderBy: [{ year: "desc" }, { month: "asc" }], // New sorting
         },
       },
     });
@@ -232,15 +233,18 @@ export const addWinners = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Invalid program ID");
   }
 
-  const year = parseInt(winners[0]?.year);
-  const month = parseInt(winners[0]?.month);
-
-  if (isNaN(year) || isNaN(month)) {
-    throw new ApiError(400, "Invalid year or month");
+  // Validate all winners have required fields
+  for (const winner of winners) {
+    if (!winner.lotId || !winner.month || !winner.year) {
+      throw new ApiError(400, "Each winner must have lotId, month, and year");
+    }
   }
 
   const lotIds = winners.map((w: any) => parseInt(w.lotId));
+  const months = winners.map((w: any) => parseInt(w.month));
+  const years = winners.map((w: any) => parseInt(w.year));
 
+  // Validate lots belong to this program
   const validLots = await prisma.goldLot.findMany({
     where: {
       id: { in: lotIds },
@@ -253,27 +257,46 @@ export const addWinners = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Some lots don't belong to this program");
   }
 
-  // Prevent lots that have already won in this program (any month/year)
-  const alreadyWinners = await prisma.goldWinner.findMany({
+  // Check for existing winners for the same month/year combinations
+  const existingWinners = await prisma.goldWinner.findMany({
+    where: {
+      programId,
+      OR: winners.map((w: any) => ({
+        AND: [{ month: parseInt(w.month) }, { year: parseInt(w.year) }],
+      })),
+    },
+  });
+
+  if (existingWinners.length > 0) {
+    const conflicts = existingWinners
+      .map((w) => `Month ${w.month}, Year ${w.year}`)
+      .join(", ");
+    throw new ApiError(400, `Winners already exist for: ${conflicts}`);
+  }
+
+  // Check if any lots have already won (in any year)
+  const alreadyWinningLots = await prisma.goldWinner.findMany({
     where: {
       programId,
       lotId: { in: lotIds },
     },
+    distinct: ["lotId"],
   });
 
-  if (alreadyWinners.length > 0) {
-    const wonIds = alreadyWinners.map((w) => w.lotId).join(", ");
+  if (alreadyWinningLots.length > 0) {
+    const wonIds = alreadyWinningLots.map((w) => w.lotId).join(", ");
     throw new ApiError(400, `Lot(s) already won: ${wonIds}`);
   }
 
+  // Create all winners in a transaction
   const createdWinners = await prisma.$transaction(
     winners.map((winner: any) =>
       prisma.goldWinner.create({
         data: {
           programId,
           lotId: parseInt(winner.lotId),
-          year,
-          month,
+          month: parseInt(winner.month),
+          year: parseInt(winner.year),
           prizeAmount: winner.prizeAmount
             ? parseFloat(winner.prizeAmount)
             : undefined,
@@ -304,11 +327,82 @@ export const getProgramWinners = asyncHandler(
       include: {
         lot: { include: { user: true } },
       },
-      orderBy: [{ year: "asc" }, { month: "asc" }],
+      orderBy: [
+        { year: "desc" }, // New: Sort by year first
+        { month: "asc" }, // Then by month
+      ],
     });
 
     res
       .status(200)
       .json(new ApiResponse(200, winners, "Program winners retrieved"));
+  }
+);
+export const exportPaymentsToExcel = asyncHandler(
+  async (req: Request, res: Response) => {
+    const programId = parseInt(req.params.programId);
+    if (isNaN(programId)) throw new ApiError(400, "Invalid program ID");
+
+    // Get program name for filename
+    const program = await prisma.goldProgram.findUnique({
+      where: { id: programId },
+      select: { name: true },
+    });
+
+    // Get all lots with payments and user info
+    const lots = await prisma.goldLot.findMany({
+      where: { programId },
+      include: {
+        user: true,
+        payments: {
+          where: { isPaid: true },
+          orderBy: [{ year: "asc" }, { month: "asc" }],
+        },
+      },
+    });
+
+    if (!lots.length) {
+      throw new ApiError(404, "No lots found for this program");
+    }
+
+    // Prepare Excel data
+    const excelData = lots.map((lot) => ({
+      "Member ID": lot.user.memberId,
+      Name: lot.user.name,
+      "Total Payments": lot.payments.length,
+      "Payment Dates": lot.payments
+        .map((p) => `${p.year}-${String(p.month).padStart(2, "0")}`)
+        .join(", "),
+      "Last Payment": lot.payments.length
+        ? `${lot.payments[lot.payments.length - 1].year}-${String(
+            lot.payments[lot.payments.length - 1].month
+          ).padStart(2, "0")}`
+        : "None",
+    }));
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Payments");
+
+    // Generate Excel file buffer
+    const buffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    // Set response headers
+    const filename = `gold_payments_${program?.name || programId}.xlsx`;
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${encodeURIComponent(filename)}`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Send the Excel file
+    res.send(Buffer.from(buffer));
   }
 );

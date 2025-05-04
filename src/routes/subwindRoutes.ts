@@ -5,8 +5,9 @@ import {
   getAllSubWings,
   getSubWingMembers,
   getSubWingDetails,
+  updateSubWing,
 } from "../controllers/subwingController";
-import { upload } from "../helpers/upload";
+import { upload } from "../controllers/adminController";
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get("/", getAllSubWings);
 
 // Get specific sub-wing details
 router.get("/:subWingId", getSubWingDetails);
-
+router.put("/:subWingId", upload.single("icon"), updateSubWing);
 // Add member to sub-wing with optional image
 router.post("/:subWingId/members", upload.single("image"), addSubWingMember);
 

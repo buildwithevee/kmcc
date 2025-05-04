@@ -7,7 +7,8 @@ import {
   deleteExclusiveMember,
   reorderExclusiveMembers,
 } from "../controllers/exclusiveMemberController";
-import { upload } from "../helpers/upload";
+import { upload } from "../controllers/adminController";
+
 
 const router = express.Router();
 

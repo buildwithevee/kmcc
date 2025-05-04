@@ -357,3 +357,58 @@ export const getSubWingDetails = asyncHandler(
       );
   }
 );
+
+export const updateSubWing = asyncHandler(
+  async (req: Request, res: Response) => {
+    const subWingId = Number(req.params.subWingId);
+    const {
+      name,
+      backgroundColor,
+      mainColor,
+    } = req.body;
+
+    if (isNaN(subWingId)) {
+      throw new ApiError(400, "Invalid sub-wing ID.");
+    }
+
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (
+      (backgroundColor && !hexColorRegex.test(backgroundColor)) ||
+      (mainColor && !hexColorRegex.test(mainColor))
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid color format. Use hex codes like #FFFFFF or #FFF."
+      );
+    }
+
+    let iconBuffer: Buffer | null = null;
+    if (req.file) {
+      if (req.file.mimetype !== "image/svg+xml") {
+        throw new ApiError(400, "Only SVG files are allowed for the icon.");
+      }
+      iconBuffer = req.file.buffer;
+    }
+
+    const updateData: {
+      name?: string;
+      icon?: Buffer | null;
+      backgroundColor?: string;
+      mainColor?: string;
+    } = {};
+
+    if (name) updateData.name = name;
+    if (iconBuffer !== null) updateData.icon = iconBuffer;
+    if (backgroundColor) updateData.backgroundColor = backgroundColor;
+    if (mainColor) updateData.mainColor = mainColor;
+
+    const updatedSubWing = await prismaClient.subWing.update({
+      where: { id: subWingId },
+      data: updateData,
+    });
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, updatedSubWing, "Sub-wing updated successfully."));
+  }
+);

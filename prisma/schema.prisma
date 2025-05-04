@@ -40,7 +40,8 @@ model User {
   UserSurveyAnswer UserSurveyAnswer[]
   Travel           Travel[]
 
-  GoldLot GoldLot[]
+  GoldLot            GoldLot[]
+  LongTermInvestment LongTermInvestment[]
 }
 
 model Membership {
@@ -400,4 +401,43 @@ model ConstitutionCommitteeMember {
   updatedAt   DateTime              @updatedAt
 
   @@index([committeeId]) // Index on committeeId for performance
+}
+
+model LongTermInvestment {
+  id                Int                 @id @default(autoincrement())
+  userId            Int
+  user              User                @relation(fields: [userId], references: [id])
+  startDate         DateTime            @default(now())
+  endDate           DateTime?
+  isActive          Boolean             @default(true)
+  totalDeposited    Float               @default(0)
+  totalProfit       Float               @default(0)
+  profitDistributed Float               @default(0)
+  profitPending     Float               @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deposits          InvestmentDeposit[]
+  profitPayouts     ProfitPayout[]
+
+  @@unique([userId, isActive], name: "one_active_investment_per_user")
+}
+
+model InvestmentDeposit {
+  id           Int                @id @default(autoincrement())
+  investment   LongTermInvestment @relation(fields: [investmentId], references: [id])
+  investmentId Int
+  amount       Float
+  depositDate  DateTime           @default(now())
+  notes        String?
+  createdAt    DateTime           @default(now())
+}
+
+model ProfitPayout {
+  id           Int                @id @default(autoincrement())
+  investment   LongTermInvestment @relation(fields: [investmentId], references: [id])
+  investmentId Int
+  amount       Float
+  payoutDate   DateTime           @default(now())
+  notes        String?
+  createdAt    DateTime           @default(now())
 }

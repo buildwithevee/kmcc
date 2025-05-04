@@ -17,7 +17,8 @@ import {
   reorderQuestions, // Import the deleteSurvey controller
 } from "../controllers/surveyController";
 import { authenticateUser } from "../middlewares/authMiddleware";
-import { upload } from "../helpers/upload";
+import { upload } from "../controllers/adminController";
+
 
 const router = Router();
 
