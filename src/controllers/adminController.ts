@@ -982,3 +982,100 @@ export const updateUserWithProfile = asyncHandler(
     );
   }
 );
+export const downloadEventRegistrations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params;
+    const programId = parseInt(eventId);
+
+    if (isNaN(programId)) throw new ApiError(400, "Invalid event ID");
+
+    // Get event details for filename
+    const event = await prismaClient.event.findUnique({
+      where: { id: programId },
+      select: { title: true },
+    });
+
+    // Get all registrations with user info
+    const registrations = await prismaClient.eventRegistration.findMany({
+      where: { eventId: programId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            memberId: true,
+            phoneNumber: true,
+            email: true,
+            gender: true,
+            profile: {
+              select: {
+                occupation: true,
+                employer: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!registrations.length) {
+      throw new ApiError(404, "No registrations found for this event");
+    }
+
+    // Prepare Excel data
+    const excelData = registrations.map((reg, index) => ({
+      "#": index + 1,
+      Name: reg.user.name,
+      "Member ID": reg.user.memberId,
+      Phone: reg.user.phoneNumber,
+      Email: reg.user.email || "N/A",
+      Gender: reg.user.gender || "N/A",
+      Occupation: reg.user.profile?.occupation || "N/A",
+      Employer: reg.user.profile?.employer || "N/A",
+      "Registration Date": reg.createdAt.toISOString().split("T")[0],
+      "Attendance Status": reg.isAttended ? "Attended" : "Not Attended",
+    }));
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    worksheet["!cols"] = [
+      { width: 5 }, // #
+      { width: 25 }, // Name
+      { width: 15 }, // Member ID
+      { width: 15 }, // Phone
+      { width: 25 }, // Email
+      { width: 10 }, // Gender
+      { width: 20 }, // Occupation
+      { width: 20 }, // Employer
+      { width: 15 }, // Registration Date
+      { width: 15 }, // Attendance Status
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
+
+    // Generate Excel file buffer
+    const buffer = XLSX.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    // Set response headers
+    const filename = `event_registrations_${
+      event?.title.replace(/[^a-z0-9]/gi, "_") || eventId
+    }.xlsx`;
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${encodeURIComponent(filename)}`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Send the Excel file
+    res.send(buffer);
+  }
+);

@@ -21,6 +21,7 @@ import {
   getProgramWinners,
   getLotsByProgram,
   exportPaymentsToExcel,
+  getCurrentWinners,
 } from "../controllers/goldController";
 import { authenticateUser } from "../middlewares/authMiddleware";
 // import { isAdmin } from "../middlewares/roleMiddleware";
@@ -45,6 +46,7 @@ router.post("/payments", recordPayment);
 
 // Winners Management
 router.post("/winners", addWinners);
+router.get("/winners/current", getCurrentWinners);
 router.get("/:programId/winners", getProgramWinners);
 router.get("/:programId/lots", getLotsByProgram);
 router.get("/:programId/export-payments", exportPaymentsToExcel);

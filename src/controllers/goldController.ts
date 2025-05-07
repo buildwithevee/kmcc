@@ -406,3 +406,80 @@ export const exportPaymentsToExcel = asyncHandler(
     res.send(Buffer.from(buffer));
   }
 );
+
+export const getCurrentWinners = asyncHandler(
+  async (req: Request, res: Response) => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+    const currentYear = currentDate.getFullYear();
+
+    // First try to find winners for current month
+    let winners = await prisma.goldWinner.findMany({
+      where: {
+        month: currentMonth,
+        year: currentYear,
+      },
+      include: {
+        lot: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    let selectedMonth = currentMonth;
+    let selectedYear = currentYear;
+    let isFallback = false;
+
+    // If no winners found for current month, try previous month
+    if (winners.length === 0) {
+      let prevMonth = currentMonth - 1;
+      let prevYear = currentYear;
+
+      if (prevMonth === 0) {
+        prevMonth = 12;
+        prevYear = currentYear - 1;
+      }
+
+      winners = await prisma.goldWinner.findMany({
+        where: {
+          month: prevMonth,
+          year: prevYear,
+        },
+        include: {
+          lot: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+
+      if (winners.length > 0) {
+        selectedMonth = prevMonth;
+        selectedYear = prevYear;
+        isFallback = true;
+      }
+    }
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          winners,
+          month: selectedMonth,
+          year: selectedYear,
+          isFallback,
+        },
+        "Winners retrieved successfully"
+      )
+    );
+  }
+);

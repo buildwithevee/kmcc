@@ -3,6 +3,7 @@ import {
   createEvent,
   deleteEvent,
   deleteUser,
+  downloadEventRegistrations,
   editMembership,
   getAllMemberships,
   getAllUsers,
@@ -48,6 +49,7 @@ router.get("/events/:eventId", getEventById);
 router.get("/events/:eventId/registrations", getEventRegistrations);
 router.patch("/events/:eventId/attendance", markAttendance);
 router.delete("/event/:eventId", deleteEvent);
+router.get('/events/:eventId/registrations/download', downloadEventRegistrations);
 router.patch("/status/event/:eventId", updateEventStatus);
 
 // Users

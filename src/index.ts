@@ -82,7 +82,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Error-handling middleware
 
 app.get("*", (req, res) => {
-  res.sendFile("/var/www/kmcc-frontend/dist/index.html");
+  res.sendFile("/var/www/glomium/kmcc-frontend/dist/index.html");
 });
 // Function to start the server
 const startServer = async () => {
