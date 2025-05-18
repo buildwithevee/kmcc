@@ -4,6 +4,7 @@ import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import sharp from "sharp";
+import ExcelJS from "exceljs";
 
 // ✅ Create a new survey
 export const createSurvey = asyncHandler(
@@ -963,5 +964,150 @@ export const getSurveyAnswers = asyncHandler(
         "Survey answers fetched successfully"
       )
     );
+  }
+);
+
+interface SurveyAnswer {
+  userId: number;
+  user: {
+    name: string;
+    iqamaNumber: string;
+  };
+  questionId: number;
+  answer: string;
+  question: {
+    text: string;
+  };
+}
+
+interface UserAnswers {
+  [userId: number]: {
+    user: {
+      name: string;
+      iqamaNumber: string;
+    };
+    answers: {
+      [questionId: number]: string;
+    };
+  };
+}
+
+export const exportSurveyAnswers = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { surveyId } = req.params;
+
+    if (!surveyId || isNaN(parseInt(surveyId))) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, {}, "Valid survey ID is required"));
+    }
+
+    const numericSurveyId = parseInt(surveyId);
+
+    try {
+      // Get survey with questions
+      const survey = await prismaClient.survey.findUnique({
+        where: { id: numericSurveyId },
+        include: {
+          questions: {
+            orderBy: { position: "asc" },
+            select: {
+              id: true,
+              text: true,
+            },
+          },
+        },
+      });
+
+      if (!survey) {
+        return res
+          .status(404)
+          .json(new ApiResponse(404, {}, "Survey not found"));
+      }
+
+      // Get all answers for this survey with user information
+      const answers = (await prismaClient.userSurveyAnswer.findMany({
+        where: { surveyId: numericSurveyId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              iqamaNumber: true,
+            },
+          },
+          question: {
+            select: {
+              id: true,
+              text: true,
+            },
+          },
+        },
+        orderBy: {
+          userId: "asc",
+        },
+      })) as SurveyAnswer[];
+
+      // Create a new workbook
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Survey Answers");
+
+      // Prepare headers
+      const headers = ["Username", "Iqama Number"];
+      const questionColumns: { [key: number]: string } = {};
+
+      // Add question columns (dynamically named qn1, qn2, etc.)
+      survey.questions.forEach((question, index) => {
+        const columnName = `qn${index + 1}`;
+        headers.push(columnName);
+        questionColumns[question.id] = columnName;
+      });
+
+      // Add headers to worksheet
+      worksheet.addRow(headers);
+
+      // Group answers by user
+      const answersByUser: UserAnswers = {};
+      answers.forEach((answer) => {
+        if (!answersByUser[answer.userId]) {
+          answersByUser[answer.userId] = {
+            user: answer.user,
+            answers: {},
+          };
+        }
+        answersByUser[answer.userId].answers[answer.questionId] = answer.answer;
+      });
+
+      // Add data rows
+      Object.values(answersByUser).forEach((userData) => {
+        const row: any[] = [userData.user.name, userData.user.iqamaNumber];
+
+        // Add answers in the correct order
+        survey.questions.forEach((question) => {
+          row.push(userData.answers[question.id] || "");
+        });
+
+        worksheet.addRow(row);
+      });
+
+      // Set response headers for file download
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=survey_${surveyId}_answers.xlsx`
+      );
+
+      // Write the workbook to the response
+      await workbook.xlsx.write(res);
+      res.end();
+    } catch (error) {
+      console.error("Error exporting survey answers:", error);
+      return res
+        .status(500)
+        .json(new ApiResponse(500, {}, "Failed to export survey answers"));
+    }
   }
 );

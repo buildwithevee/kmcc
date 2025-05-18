@@ -14,11 +14,11 @@ import {
   getQuestionById,
   updateQuestion,
   getSurveyAnswers,
-  reorderQuestions, // Import the deleteSurvey controller
+  reorderQuestions,
+  exportSurveyAnswers, // Import the deleteSurvey controller
 } from "../controllers/surveyController";
 import { authenticateUser } from "../middlewares/authMiddleware";
 import { upload } from "../controllers/adminController";
-
 
 const router = Router();
 
@@ -47,6 +47,7 @@ router.route("/pending/user/:userId").get(getPendingSurveyForAdmin);
 // Get pending survey for a user
 router.route("/pending").get(authenticateUser, getPendingSurvey);
 
+router.get("/export/:surveyId", exportSurveyAnswers);
 // Get pending question for a user in a survey
 router
   .route("/pending/survey/:surveyId")
@@ -57,5 +58,4 @@ router.route("/submit").post(authenticateUser, submitAnswer);
 //order re
 router.route("/surveys/:surveyId/reorder-questions").post(reorderQuestions);
 router.route("/:surveyId/progress").get(authenticateUser, getSurveyProgress);
-
 export default router;
