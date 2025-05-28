@@ -15,10 +15,9 @@ const apiHandlerHelpers_1 = require("../utils/apiHandlerHelpers");
 const asyncHandler_1 = require("../utils/asyncHandler");
 // ✅ Add an airport (Admin Only)
 exports.addAirport = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.isAdmin)) {
-        throw new apiHandlerHelpers_1.ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
     const { name, code, country } = req.body;
     if (!name || !code || !country) {
         throw new apiHandlerHelpers_1.ApiError(400, "All fields (name, code, country) are required");
@@ -45,10 +44,9 @@ exports.getAirportById = (0, asyncHandler_1.asyncHandler)((req, res) => __awaite
 }));
 // ✅ Update an airport (Admin Only)
 exports.updateAirport = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.isAdmin)) {
-        throw new apiHandlerHelpers_1.ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
     const { name, code, country } = req.body;
     const airportId = Number(req.params.id);
     const existingAirport = yield db_1.prismaClient.airport.findUnique({
@@ -65,10 +63,9 @@ exports.updateAirport = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
 }));
 // ✅ Delete an airport (Admin Only)
 exports.deleteAirport = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.isAdmin)) {
-        throw new apiHandlerHelpers_1.ApiError(403, "Forbidden: Admin access required");
-    }
+    // if (!req.user?.isAdmin) {
+    //     throw new ApiError(403, "Forbidden: Admin access required");
+    // }
     const airportId = Number(req.params.id);
     const existingAirport = yield db_1.prismaClient.airport.findUnique({
         where: { id: airportId },

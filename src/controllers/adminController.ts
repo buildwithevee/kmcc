@@ -7,7 +7,7 @@ import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
 import multer from "multer";
 import sharp from "sharp";
-
+import bcrypt from "bcrypt";
 // ✅ Controller for Importing Membership Data from Excel
 export const uploadMembership = asyncHandler(
   async (req: Request, res: Response) => {
@@ -883,6 +883,7 @@ export const updateUserWithProfile = asyncHandler(
       phoneNumber,
       isAdmin,
       isSuperAdmin,
+      password, // Add password field
       // Profile fields
       occupation,
       employer,
@@ -917,6 +918,12 @@ export const updateUserWithProfile = asyncHandler(
         .toBuffer();
     }
 
+    // Hash password if provided
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     // Update user and profile in a transaction
     const [updatedUser] = await prismaClient.$transaction([
       prismaClient.user.update({
@@ -928,6 +935,7 @@ export const updateUserWithProfile = asyncHandler(
           isAdmin: isAdmin === "true",
           isSuperAdmin: isSuperAdmin === "true",
           ...(profileImageBuffer && { profileImage: profileImageBuffer }),
+          ...(hashedPassword && { password: hashedPassword }), // Conditionally add password
         },
         include: { profile: true },
       }),
@@ -1006,6 +1014,7 @@ export const downloadEventRegistrations = asyncHandler(
             phoneNumber: true,
             email: true,
             gender: true,
+            areaName: true,
             profile: {
               select: {
                 occupation: true,
@@ -1021,6 +1030,7 @@ export const downloadEventRegistrations = asyncHandler(
     if (!registrations.length) {
       throw new ApiError(404, "No registrations found for this event");
     }
+    console.log(registrations);
 
     // Prepare Excel data
     const excelData = registrations.map((reg, index) => ({
@@ -1034,6 +1044,7 @@ export const downloadEventRegistrations = asyncHandler(
       Employer: reg.user.profile?.employer || "N/A",
       "Registration Date": reg.createdAt.toISOString().split("T")[0],
       "Attendance Status": reg.isAttended ? "Attended" : "Not Attended",
+      Constituency: reg.user.areaName || "N/A",
     }));
 
     // Create workbook

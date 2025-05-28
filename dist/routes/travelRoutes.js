@@ -6,6 +6,6 @@ const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = (0, express_1.Router)();
 router.post("/", authMiddleware_1.authenticateUser, TravelController_1.addTravel);
 router.get("/", TravelController_1.getAllTravels);
-router.put("/:id", authMiddleware_1.authenticateUser, TravelController_1.updateTravelStatus);
+router.put("/:id", authMiddleware_1.authenticateUser, TravelController_1.updateTravel);
 router.delete("/:id", authMiddleware_1.authenticateUser, TravelController_1.deleteTravel); // ✅ Secure delete route
 exports.default = router;

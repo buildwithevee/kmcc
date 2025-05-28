@@ -24,11 +24,11 @@ const normalizeId = (id) => parseInt(id, 10).toString();
 function createSurveyProgressForUser(userId) {
     return __awaiter(this, void 0, void 0, function* () {
         const surveys = yield db_1.prismaClient.survey.findMany();
-        return surveys.map(survey => ({
+        return surveys.map((survey) => ({
             userId,
             surveyId: survey.id,
             completed: false,
-            lastQuestionId: null
+            lastQuestionId: null,
         }));
     });
 }
@@ -39,15 +39,18 @@ exports.signup = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0
     const normalizedMemberId = normalizeId(memberId);
     // Fetch all memberships and normalize `memberId` before checking
     const memberships = yield db_1.prismaClient.membership.findMany();
-    const existingMember = memberships.find(m => normalizeId(m.memberId) === normalizedMemberId && m.iqamaNumber === iqamaNumber);
+    const existingMember = memberships.find((m) => normalizeId(m.memberId) === normalizedMemberId &&
+        m.iqamaNumber === iqamaNumber);
     if (!existingMember) {
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid memberId or iqamaNumber");
     }
-    // Extract the name from Membership table
-    const { name } = existingMember;
+    // Extract the name and areaName from Membership table
+    const { name, areaName } = existingMember;
+    // Create the kmccPosition dynamically
+    const kmccPosition = `kmcc ${areaName} member`;
     // Check if the user is already registered
     const existingUser = yield db_1.prismaClient.user.findFirst({
-        where: { OR: [{ memberId: normalizedMemberId }, { iqamaNumber }] }
+        where: { OR: [{ memberId: normalizedMemberId }, { iqamaNumber }] },
     });
     if (existingUser) {
         throw new apiHandlerHelpers_1.ApiError(400, "User already registered");
@@ -65,14 +68,22 @@ exports.signup = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0
             password: hashedPassword,
             name,
             isSuperAdmin: isFirstUser, // First user is super admin
-            isAdmin: false // Admins will be set manually
-        }
+            isAdmin: false, // Admins will be set manually
+            profile: {
+                create: {
+                    kmccPosition, // Store dynamically created kmccPosition
+                },
+            },
+            areaName: existingMember.areaName,
+        },
     });
     // Automatically create a survey progress entry for the new user
     yield db_1.prismaClient.userSurveyProgress.createMany({
-        data: yield createSurveyProgressForUser(newUser.id)
+        data: yield createSurveyProgressForUser(newUser.id),
     });
-    res.status(201).json(new apiHandlerHelpers_1.ApiResponse(201, newUser, "User registered successfully"));
+    res
+        .status(201)
+        .json(new apiHandlerHelpers_1.ApiResponse(201, newUser, "User registered successfully"));
 }));
 // ✅ Login Route
 exports.login = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -84,7 +95,8 @@ exports.login = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0,
     const normalizedIdentifier = normalizeId(identifier);
     // Fetch all users and normalize `memberId` before checking
     const users = yield db_1.prismaClient.user.findMany();
-    const user = users.find(u => normalizeId(u.memberId) === normalizedIdentifier || u.iqamaNumber === identifier);
+    const user = users.find((u) => normalizeId(u.memberId) === normalizedIdentifier ||
+        u.iqamaNumber === identifier);
     if (!user) {
         throw new apiHandlerHelpers_1.ApiError(401, "Invalid credentials");
     }
@@ -100,8 +112,8 @@ exports.login = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0,
             id: user.id,
             name: user.name,
             isAdmin: user.isAdmin,
-            isSuperAdmin: user.isSuperAdmin
-        }
+            isSuperAdmin: user.isSuperAdmin,
+        },
     }, "Login successful"));
 }));
 // ✅ Make Admin Route (Only Super Admin Can Promote Users)

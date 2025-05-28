@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTravel = exports.updateTravelStatus = exports.getAllTravels = exports.addTravel = void 0;
+exports.getAirports = exports.deleteTravel = exports.updateTravel = exports.getAllTravels = exports.addTravel = void 0;
 const db_1 = require("../config/db");
 const asyncHandler_1 = require("../utils/asyncHandler");
 const apiHandlerHelpers_1 = require("../utils/apiHandlerHelpers");
@@ -18,8 +18,20 @@ exports.addTravel = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(voi
     var _a;
     const { fromAirportId, toAirportId, travelDate, travelTime } = req.body;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-    if (!userId || !fromAirportId || !toAirportId || !travelDate || !travelTime) {
+    if (!userId ||
+        !fromAirportId ||
+        !toAirportId ||
+        !travelDate ||
+        !travelTime) {
         throw new apiHandlerHelpers_1.ApiError(400, "All fields are required.");
+    }
+    // Validate airports exist
+    const [fromAirport, toAirport] = yield Promise.all([
+        db_1.prismaClient.airport.findUnique({ where: { id: fromAirportId } }),
+        db_1.prismaClient.airport.findUnique({ where: { id: toAirportId } }),
+    ]);
+    if (!fromAirport || !toAirport) {
+        throw new apiHandlerHelpers_1.ApiError(400, "Invalid airport selection");
     }
     const travel = yield db_1.prismaClient.travel.create({
         data: {
@@ -33,9 +45,12 @@ exports.addTravel = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(voi
         include: {
             fromAirport: true,
             toAirport: true,
+            user: { select: { name: true, email: true } },
         },
     });
-    res.status(201).json(new apiHandlerHelpers_1.ApiResponse(201, travel, "Travel details added successfully"));
+    res
+        .status(201)
+        .json(new apiHandlerHelpers_1.ApiResponse(201, travel, "Travel details added successfully"));
 }));
 // ➤ Get all travel records
 exports.getAllTravels = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -45,43 +60,72 @@ exports.getAllTravels = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
             fromAirport: true,
             toAirport: true,
         },
+        orderBy: { travelDate: "desc" },
     });
-    res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, travels, "Travel data retrieved successfully"));
+    res
+        .status(200)
+        .json(new apiHandlerHelpers_1.ApiResponse(200, travels, "Travel data retrieved successfully"));
 }));
-// ➤ Update travel status
-exports.updateTravelStatus = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+// ➤ Update travel record (full update)
+exports.updateTravel = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const { id } = req.params;
-    const { status } = req.body;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId; // Extract user ID from authenticated request
+    const { fromAirportId, toAirportId, travelDate, travelTime, status } = req.body;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     if (!userId) {
         throw new apiHandlerHelpers_1.ApiError(401, "Unauthorized");
+    }
+    // Validate required fields
+    if (!fromAirportId ||
+        !toAirportId ||
+        !travelDate ||
+        !travelTime ||
+        !status) {
+        throw new apiHandlerHelpers_1.ApiError(400, "All fields are required.");
     }
     if (!["AVAILABLE", "ONBOARD", "NOT_AVAILABLE"].includes(status)) {
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid status provided");
     }
-    // Check if the travel record exists and belongs to the user
+    // Check if travel record exists
     const travel = yield db_1.prismaClient.travel.findUnique({
         where: { id: Number(id) },
     });
     if (!travel) {
         throw new apiHandlerHelpers_1.ApiError(404, "Travel record not found");
     }
-    if (travel.userId !== userId) {
-        throw new apiHandlerHelpers_1.ApiError(403, "You are not authorized to update this travel record");
+    // Validate airports exist
+    const [fromAirport, toAirport] = yield Promise.all([
+        db_1.prismaClient.airport.findUnique({ where: { id: fromAirportId } }),
+        db_1.prismaClient.airport.findUnique({ where: { id: toAirportId } }),
+    ]);
+    if (!fromAirport || !toAirport) {
+        throw new apiHandlerHelpers_1.ApiError(400, "Invalid airport selection");
     }
-    // Update status
+    // Update travel record
     const updatedTravel = yield db_1.prismaClient.travel.update({
         where: { id: Number(id) },
-        data: { status },
+        data: {
+            fromAirportId,
+            toAirportId,
+            travelDate: new Date(travelDate),
+            travelTime,
+            status,
+        },
+        include: {
+            fromAirport: true,
+            toAirport: true,
+            user: { select: { name: true } },
+        },
     });
-    res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, updatedTravel, "Travel status updated successfully"));
+    res
+        .status(200)
+        .json(new apiHandlerHelpers_1.ApiResponse(200, updatedTravel, "Travel record updated successfully"));
 }));
 exports.deleteTravel = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     const { id } = req.params;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId; // Get authenticated user ID
-    const isAdmin = (_b = req.user) === null || _b === void 0 ? void 0 : _b.userId; // Check if user is admin
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+    const isAdmin = (_b = req.user) === null || _b === void 0 ? void 0 : _b.isAdmin; // Assuming your auth middleware adds isAdmin
     if (!userId) {
         throw new apiHandlerHelpers_1.ApiError(401, "Unauthorized");
     }
@@ -100,5 +144,16 @@ exports.deleteTravel = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(
     yield db_1.prismaClient.travel.delete({
         where: { id: Number(id) },
     });
-    res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, {}, "Travel record deleted successfully"));
+    res
+        .status(200)
+        .json(new apiHandlerHelpers_1.ApiResponse(200, {}, "Travel record deleted successfully"));
+}));
+// ➤ Get all airports
+exports.getAirports = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const airports = yield db_1.prismaClient.airport.findMany({
+        orderBy: { name: "asc" },
+    });
+    res
+        .status(200)
+        .json(new apiHandlerHelpers_1.ApiResponse(200, airports, "Airports retrieved successfully"));
 }));

@@ -9,6 +9,7 @@ import {
   updateCommitteeMember,
   deleteCommittee,
   deleteCommitteeMember,
+  getCommitteeMember,
 } from "../controllers/constitutionCommitteeController";
 import { upload } from "../controllers/adminController";
 
@@ -30,5 +31,6 @@ router.post(
 router.get("/:committeeId/members", getCommitteeMembers);
 router.put("/members/:memberId", upload.single("image"), updateCommitteeMember);
 router.delete("/members/:memberId", deleteCommitteeMember);
-
+// Add this route before the update/delete member routes
+router.get("/members/:memberId", getCommitteeMember);
 export default router;

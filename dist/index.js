@@ -31,6 +31,12 @@ const serviceRoutes_1 = __importDefault(require("./routes/serviceRoutes"));
 const surveyRoutes_1 = __importDefault(require("./routes/surveyRoutes"));
 const travelRoutes_1 = __importDefault(require("./routes/travelRoutes"));
 const airportRoutes_1 = __importDefault(require("./routes/airportRoutes"));
+const exclusiveMemberRoutes_1 = __importDefault(require("./routes/exclusiveMemberRoutes"));
+const subwindRoutes_1 = __importDefault(require("./routes/subwindRoutes"));
+const bookRoutes_1 = __importDefault(require("./routes/bookRoutes"));
+const goldRoutes_1 = __importDefault(require("./routes/goldRoutes"));
+const constitutionCommitteeRoutes_1 = __importDefault(require("./routes/constitutionCommitteeRoutes"));
+const investmentRoutes_1 = __importDefault(require("./routes/investmentRoutes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -39,19 +45,20 @@ const limiter = (0, express_rate_limit_1.default)({
     max: 100, // Limit each IP to 100 requests per minute
     message: {
         status: 429,
-        message: 'Too many requests. Please try again after an hour.',
+        message: "Too many requests. Please try again after an hour.",
     },
     standardHeaders: true,
     legacyHeaders: false,
 });
-app.use(limiter);
+// app.use(limiter);
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-app.use((0, morgan_1.default)('dev')); // Logging
+app.use(express_1.default.static("/var/www/kmcc-frontend/dist/"));
+app.use((0, morgan_1.default)("dev")); // Logging
 app.use((0, helmet_1.default)()); // Security
 app.use((0, compression_1.default)({ threshold: 1024 }));
-app.get('/', (req, res) => {
-    res.send('Hello, Secure and Logged World!');
+app.get("/", (req, res) => {
+    res.send("Hello, Secure and Logged World!");
 });
 app.use("/api/auth/", authRoutes_1.default);
 app.use("/api/admin/", adminRoutes_1.default);
@@ -62,18 +69,27 @@ app.use("/api/services/", serviceRoutes_1.default);
 app.use("/api/survey/", surveyRoutes_1.default);
 app.use("/api/travel/", travelRoutes_1.default);
 app.use("/api/airport/", airportRoutes_1.default);
+app.use("/api/exclusive-members/", exclusiveMemberRoutes_1.default);
+app.use("/api/sub-wing/", subwindRoutes_1.default);
+app.use("/api/book/", bookRoutes_1.default);
+app.use("/api/gold/", goldRoutes_1.default);
+app.use("/api/constitution-committees/", constitutionCommitteeRoutes_1.default);
+app.use("/api/investments/", investmentRoutes_1.default);
+app.use(errorHandler_1.errorHandler);
 app.use((req, res, next) => {
     throw new apiHandlerHelpers_1.ApiError(404, "Route not found");
 });
 // Error-handling middleware
-app.use(errorHandler_1.errorHandler);
+app.get("*", (req, res) => {
+    res.sendFile("/var/www/glomium/kmcc-frontend/dist/index.html");
+});
 // Function to start the server
 const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield db_1.prismaClient.$connect();
         console.log("✅ Database connected successfully!");
         app.listen(3000, () => {
-            console.log('🚀 Server is running on port 3000');
+            console.log("🚀 Server is running on port 3000");
         });
     }
     catch (error) {

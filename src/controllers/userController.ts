@@ -637,6 +637,7 @@ export const getProfile = asyncHandler(
               address: true,
             },
           },
+          memberId: true,
         },
       }),
       // All active gold program lots

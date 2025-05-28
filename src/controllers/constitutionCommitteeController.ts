@@ -140,6 +140,32 @@ export const getCommitteeMembers = asyncHandler(
   }
 );
 
+// Get single committee member
+export const getCommitteeMember = asyncHandler(
+  async (req: Request, res: Response) => {
+    const memberId = Number(req.params.memberId);
+    if (isNaN(memberId)) throw new ApiError(400, "Invalid member ID.");
+
+    const member = await prismaClient.constitutionCommitteeMember.findUnique({
+      where: { id: memberId },
+    });
+
+    if (!member) {
+      throw new ApiError(404, "Member not found.");
+    }
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          ...member,
+          image: bufferToImageDataUrl(member.image),
+        },
+        "Member retrieved successfully."
+      )
+    );
+  }
+);
 // Get full details of a committee including members
 export const getCommitteeDetails = asyncHandler(
   async (req: Request, res: Response) => {

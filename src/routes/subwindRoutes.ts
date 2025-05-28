@@ -6,6 +6,8 @@ import {
   getSubWingMembers,
   getSubWingDetails,
   updateSubWing,
+  deleteSubWingMember,
+  updateSubWingMember,
 } from "../controllers/subwingController";
 import { upload } from "../controllers/adminController";
 
@@ -25,5 +27,11 @@ router.post("/:subWingId/members", upload.single("image"), addSubWingMember);
 
 // Get members of specific sub-wing
 router.get("/:subWingId/members", getSubWingMembers);
-
+// Add these routes
+router.delete("/:subWingId/members/:memberId", deleteSubWingMember);
+router.put(
+  "/:subWingId/members/:memberId",
+  upload.single("image"),
+  updateSubWingMember
+);
 export default router;

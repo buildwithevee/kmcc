@@ -118,7 +118,68 @@ const bufferToSvgDataUrl = (
     return null;
   }
 };
+// Add this to your subwingController.ts
+export const deleteSubWingMember = asyncHandler(
+  async (req: Request, res: Response) => {
+    const memberId = Number(req.params.memberId);
+    if (isNaN(memberId)) {
+      throw new ApiError(400, "Invalid member ID.");
+    }
 
+    await prismaClient.subWingMember.delete({
+      where: { id: memberId },
+    });
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Member deleted successfully."));
+  }
+);
+// Add this to your subwingController.ts
+export const updateSubWingMember = asyncHandler(
+  async (req: Request, res: Response) => {
+    const memberId = Number(req.params.memberId);
+    const { name, position } = req.body;
+
+    if (isNaN(memberId)) {
+      throw new ApiError(400, "Invalid member ID.");
+    }
+
+    if (!name || !position) {
+      throw new ApiError(400, "Name and position are required.");
+    }
+
+    let imageBuffer: Buffer | null = null;
+    if (req.file) {
+      imageBuffer = await sharp(req.file.buffer)
+        .resize(163, 231)
+        .jpeg({ quality: 80 })
+        .toBuffer();
+    }
+
+    const updateData: {
+      name: string;
+      position: string;
+      image?: Buffer;
+    } = {
+      name,
+      position,
+    };
+
+    if (imageBuffer) {
+      updateData.image = imageBuffer;
+    }
+
+    const updatedMember = await prismaClient.subWingMember.update({
+      where: { id: memberId },
+      data: updateData,
+    });
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, updatedMember, "Member updated successfully."));
+  }
+);
 export const getAllSubWings = asyncHandler(
   async (req: Request, res: Response) => {
     try {
@@ -361,11 +422,7 @@ export const getSubWingDetails = asyncHandler(
 export const updateSubWing = asyncHandler(
   async (req: Request, res: Response) => {
     const subWingId = Number(req.params.subWingId);
-    const {
-      name,
-      backgroundColor,
-      mainColor,
-    } = req.body;
+    const { name, backgroundColor, mainColor } = req.body;
 
     if (isNaN(subWingId)) {
       throw new ApiError(400, "Invalid sub-wing ID.");
@@ -409,6 +466,8 @@ export const updateSubWing = asyncHandler(
 
     res
       .status(200)
-      .json(new ApiResponse(200, updatedSubWing, "Sub-wing updated successfully."));
+      .json(
+        new ApiResponse(200, updatedSubWing, "Sub-wing updated successfully.")
+      );
   }
 );

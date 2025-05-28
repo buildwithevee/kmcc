@@ -19,9 +19,17 @@ const apiHandlerHelpers_1 = require("../utils/apiHandlerHelpers");
 const sharp_1 = __importDefault(require("sharp"));
 // ✅ Create a new job (Admin Only)
 exports.createJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { companyName, position, jobMode, salary, place, jobDescription, keyResponsibilities, requirements, benefits } = req.body;
+    const { companyName, position, jobMode, salary, place, jobDescription, keyResponsibilities, requirements, benefits, } = req.body;
     // ✅ Validate Required Fields
-    if (!companyName || !position || !jobMode || !salary || !place || !jobDescription || !keyResponsibilities || !requirements || !benefits) {
+    if (!companyName ||
+        !position ||
+        !jobMode ||
+        !salary ||
+        !place ||
+        !jobDescription ||
+        !keyResponsibilities ||
+        !requirements ||
+        !benefits) {
         throw new apiHandlerHelpers_1.ApiError(400, "All fields are required.");
     }
     // ✅ Ensure Logo Exists
@@ -93,7 +101,9 @@ exports.applyJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void
                 resume: compressedResume, // ✅ Store binary data, NOT base64
             },
         });
-        res.status(201).json(new apiHandlerHelpers_1.ApiResponse(201, application, "Job application submitted successfully."));
+        res
+            .status(201)
+            .json(new apiHandlerHelpers_1.ApiResponse(201, application, "Job application submitted successfully."));
     }
     catch (error) {
         console.error("Database Error:", error);
@@ -109,7 +119,9 @@ exports.getActiveJobs = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
         isClosed: false,
         OR: search
             ? [
-                { companyName: { contains: search, mode: "insensitive" } },
+                {
+                    companyName: { contains: search, mode: "insensitive" },
+                },
                 { position: { contains: search, mode: "insensitive" } },
             ]
             : undefined,
@@ -133,14 +145,16 @@ exports.getActiveJobs = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter
         },
     });
     // ✅ Convert logo to Base64 for response
-    const formattedJobs = jobs.map(job => ({
+    const formattedJobs = jobs.map((job) => ({
         id: job.id,
         companyName: job.companyName,
         position: job.position,
         jobMode: job.jobMode,
         salary: job.salary,
         place: job.place,
-        logo: job.logo ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}` : null,
+        logo: job.logo
+            ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}`
+            : null,
     }));
     res.status(200).json(new apiHandlerHelpers_1.ApiResponse(200, {
         totalJobs,
@@ -165,7 +179,9 @@ exports.getJobById = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(vo
         where: { jobId },
     });
     // ✅ Convert binary logo to Base64
-    const formattedJob = Object.assign(Object.assign({}, job), { logo: job.logo ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}` : null, applicationCount });
+    const formattedJob = Object.assign(Object.assign({}, job), { logo: job.logo
+            ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}`
+            : null, applicationCount });
     res.json(new apiHandlerHelpers_1.ApiResponse(200, formattedJob, "Job details retrieved successfully."));
 }));
 // ✅ Admin - Get all jobs (with search & pagination)
@@ -175,7 +191,9 @@ exports.getAllJobsAdmin = (0, asyncHandler_1.asyncHandler)((req, res) => __await
     const filter = search
         ? {
             OR: [
-                { companyName: { contains: search, mode: "insensitive" } },
+                {
+                    companyName: { contains: search, mode: "insensitive" },
+                },
                 { position: { contains: search, mode: "insensitive" } },
             ],
         }
@@ -188,7 +206,9 @@ exports.getAllJobsAdmin = (0, asyncHandler_1.asyncHandler)((req, res) => __await
         orderBy: { createdAt: "desc" },
     });
     // ✅ Convert logo to Base64
-    const formattedJobs = jobs.map(job => (Object.assign(Object.assign({}, job), { logo: job.logo ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}` : null })));
+    const formattedJobs = jobs.map((job) => (Object.assign(Object.assign({}, job), { logo: job.logo
+            ? `data:image/jpeg;base64,${Buffer.from(job.logo).toString("base64")}`
+            : null })));
     res.json({
         success: true,
         totalJobs,
@@ -198,22 +218,29 @@ exports.getAllJobsAdmin = (0, asyncHandler_1.asyncHandler)((req, res) => __await
         message: "Jobs retrieved successfully (Admin).",
     });
 }));
-// ✅ Update an existing job (Admin Only)
 exports.editJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const jobId = Number(req.params.jobId);
     if (!jobId)
         throw new apiHandlerHelpers_1.ApiError(400, "Job ID is required.");
-    // ✅ Fetch Existing Job
-    const existingJob = yield db_1.prismaClient.job.findUnique({ where: { id: jobId } });
+    // Fetch Existing Job
+    const existingJob = yield db_1.prismaClient.job.findUnique({
+        where: { id: jobId },
+    });
     if (!existingJob)
         throw new apiHandlerHelpers_1.ApiError(404, "Job not found.");
-    // ✅ Extract Request Data
-    const { companyName, position, jobMode, salary, place, jobDescription, keyResponsibilities, requirements, benefits, isClosed } = req.body;
-    // ✅ Convert JSON Fields (if provided)
-    const parsedKeyResponsibilities = keyResponsibilities ? JSON.parse(keyResponsibilities) : existingJob.keyResponsibilities;
-    const parsedRequirements = requirements ? JSON.parse(requirements) : existingJob.requirements;
+    // Extract Request Data - IMPORTANT: isClosed comes as a string from FormData
+    const { companyName, position, jobMode, salary, place, jobDescription, keyResponsibilities, requirements, benefits, isClosed, } = req.body;
+    // Convert string 'true'/'false' to boolean
+    const isClosedBoolean = isClosed ? isClosed === "true" : existingJob.isClosed;
+    // Rest of your processing...
+    const parsedKeyResponsibilities = keyResponsibilities
+        ? JSON.parse(keyResponsibilities)
+        : existingJob.keyResponsibilities;
+    const parsedRequirements = requirements
+        ? JSON.parse(requirements)
+        : existingJob.requirements;
     const parsedBenefits = benefits ? JSON.parse(benefits) : existingJob.benefits;
-    // ✅ Process Logo (if provided)
+    // Process Logo (if provided)
     let updatedLogo = existingJob.logo;
     if (req.file) {
         updatedLogo = yield (0, sharp_1.default)(req.file.buffer)
@@ -221,7 +248,7 @@ exports.editJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 
             .jpeg({ quality: 80 })
             .toBuffer();
     }
-    // ✅ Update Job
+    // Update Job
     const updatedJob = yield db_1.prismaClient.job.update({
         where: { id: jobId },
         data: {
@@ -234,7 +261,7 @@ exports.editJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 
             keyResponsibilities: parsedKeyResponsibilities,
             requirements: parsedRequirements,
             benefits: parsedBenefits,
-            isClosed: isClosed !== undefined ? Boolean(isClosed) : existingJob.isClosed,
+            isClosed: isClosedBoolean, // Use the properly converted boolean
             logo: updatedLogo,
         },
     });
@@ -245,7 +272,9 @@ exports.deleteJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(voi
     const jobId = Number(req.params.jobId);
     if (!jobId)
         throw new apiHandlerHelpers_1.ApiError(400, "Job ID is required.");
-    const existingJob = yield db_1.prismaClient.job.findUnique({ where: { id: jobId } });
+    const existingJob = yield db_1.prismaClient.job.findUnique({
+        where: { id: jobId },
+    });
     if (!existingJob)
         throw new apiHandlerHelpers_1.ApiError(404, "Job not found.");
     yield db_1.prismaClient.jobApplication.deleteMany({ where: { jobId } }); // Deleting related job applications
@@ -262,7 +291,10 @@ exports.getJobApplications = (0, asyncHandler_1.asyncHandler)((req, res) => __aw
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid job ID.");
     const pageNumber = Number(page);
     const pageSize = Number(limit);
-    if (isNaN(pageNumber) || isNaN(pageSize) || pageNumber < 1 || pageSize < 1) {
+    if (isNaN(pageNumber) ||
+        isNaN(pageSize) ||
+        pageNumber < 1 ||
+        pageSize < 1) {
         throw new apiHandlerHelpers_1.ApiError(400, "Invalid pagination parameters.");
     }
     console.log(`Fetching applications for job ID: ${parsedJobId}, Page: ${pageNumber}, Limit: ${pageSize}`);
@@ -277,10 +309,8 @@ exports.getJobApplications = (0, asyncHandler_1.asyncHandler)((req, res) => __aw
         take: pageSize,
         orderBy: { createdAt: "desc" }, // Sort by latest
     });
-    if (!applications.length)
-        throw new apiHandlerHelpers_1.ApiError(404, "No applications found for this job.");
     // ✅ Convert Buffer to Base64 format
-    const formattedApplications = applications.map(app => ({
+    const formattedApplications = applications.map((app) => ({
         id: app.id,
         fullName: app.fullName,
         email: app.email,
@@ -298,7 +328,9 @@ exports.getJobApplications = (0, asyncHandler_1.asyncHandler)((req, res) => __aw
             totalPages: Math.ceil(totalApplications / pageSize),
             pageSize,
         },
-    }, "Job applications retrieved successfully."));
+    }, applications.length > 0
+        ? "Job applications retrieved successfully."
+        : "No applications found for this job."));
 }));
 exports.closeJob = (0, asyncHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { jobId } = req.params;
