@@ -3,6 +3,7 @@ import { prismaClient } from "../config/db";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiResponse, ApiError } from "../utils/apiHandlerHelpers";
 import { AuthRequest } from "../middlewares/authMiddleware";
+import { sendGlobalNotification } from "../utils/notify";
 
 // ➤ Add a travel entry
 export const addTravel = asyncHandler(
@@ -44,6 +45,11 @@ export const addTravel = asyncHandler(
         toAirport: true,
         user: { select: { name: true, email: true } },
       },
+    });
+    await sendGlobalNotification({
+      title: "Hey KMCC Members!",
+      body: "Check out the latest travel update!",
+      data: { type: "news", travelId: travel.id.toString() },
     });
 
     res

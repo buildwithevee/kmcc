@@ -24,6 +24,7 @@ model User {
   profileImage      Bytes? // Nullable field
   password          String
   areaName          String? // Add this new field
+  fcmToken          String?
   isAdmin           Boolean  @default(false) // ✅ Indicates if the user is an admin
   isSuperAdmin      Boolean  @default(false) // ✅ Only one user should have this set to true
   isSurveyCompleted Boolean  @default(false)
@@ -41,8 +42,10 @@ model User {
   UserSurveyAnswer UserSurveyAnswer[]
   Travel           Travel[]
 
-  GoldLot            GoldLot[]
-  LongTermInvestment LongTermInvestment[]
+  GoldLot               GoldLot[]
+  LongTermInvestment    LongTermInvestment[]
+  Notification          Notification[]
+  UserNotificationToken UserNotificationToken[]
 }
 
 model Membership {
@@ -441,4 +444,27 @@ model ProfitPayout {
   payoutDate   DateTime           @default(now())
   notes        String?
   createdAt    DateTime           @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  body      String
+  data      Json? // Additional data payload
+  isRead    Boolean  @default(false)
+  userId    Int? // If notification is specific to a user
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserNotificationToken {
+  id     Int    @id @default(autoincrement())
+  userId Int
+  token  String @unique // Firebase device token
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Index for faster queries by user
 }

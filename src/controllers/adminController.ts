@@ -8,6 +8,8 @@ import { prismaClient } from "../config/db";
 import multer from "multer";
 import sharp from "sharp";
 import bcrypt from "bcrypt";
+import { admin } from "../config/firebase";
+import { sendGlobalNotification } from "../utils/notify";
 // ✅ Controller for Importing Membership Data from Excel
 export const uploadMembership = asyncHandler(
   async (req: Request, res: Response) => {
@@ -345,29 +347,48 @@ export const getBanner = asyncHandler(async (req: Request, res: Response) => {
 export const createEvent = asyncHandler(async (req: Request, res: Response) => {
   const { title, eventDate, place, timing, highlights, eventType } = req.body;
 
-  // ✅ Ensure highlights is always an array
+  // Process highlights
   const highlightsData = Array.isArray(highlights)
     ? highlights
     : typeof highlights === "string"
     ? JSON.parse(highlights)
     : [];
 
-  // ✅ Compress image before storing
+  // Process image
   const imageBuffer = req.file
     ? await sharp(req.file.buffer).resize(800).jpeg({ quality: 80 }).toBuffer()
     : null;
 
+  // Create event
   const event = await prismaClient.event.create({
     data: {
       title,
       eventDate: new Date(eventDate),
       place,
       timing,
-      highlights: highlightsData, // ✅ No JSON.stringify()
+      highlights: highlightsData,
       eventType,
       image: imageBuffer,
     },
-    select: { id: true }, // ✅ Return only event ID
+    select: { id: true, title: true, eventDate: true },
+  });
+
+  // Create notification message
+  // const notificationTitle = "New Event Created";
+  // const notificationBody = `"${
+  //   event.title
+  // }" on ${event.eventDate.toLocaleDateString()}`;
+  // const notificationData = {
+  //   type: "event",
+  //   eventId: event.id.toString(),
+  // };
+
+  // Create notification in database
+
+  await sendGlobalNotification({
+    title: title,
+    body: "Check out the latest update!",
+    data: { type: "event", eventId: event.id.toString() },
   });
 
   res.json(

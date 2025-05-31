@@ -28,6 +28,8 @@ import bookRouter from "./routes/bookRoutes";
 import goldRouter from "./routes/goldRoutes";
 import constitutionCommitteeRouter from "./routes/constitutionCommitteeRoutes";
 import investmentRouter from "./routes/investmentRoutes";
+import nofiticationRouter from "./routes/notificationRoutes";
+import { admin } from "./config/firebase";
 
 dotenv.config();
 
@@ -73,6 +75,23 @@ app.use("/api/book/", bookRouter);
 app.use("/api/gold/", goldRouter);
 app.use("/api/constitution-committees/", constitutionCommitteeRouter);
 app.use("/api/investments/", investmentRouter);
+app.use("/api/notify/", nofiticationRouter);
+
+app.post("/api/subscribe-token", async (req: Request, res: Response) => {
+  const { token } = req.body;
+
+  if (!token) return res.status(400).json({ error: "Missing token" });
+
+  try {
+    await admin.messaging().subscribeToTopic([token], "global");
+    console.log("subscribed to global topic:", token);
+
+    return res.json({ success: true, message: "Subscribed to global topic" });
+  } catch (err) {
+    console.error("Subscription error:", err);
+    return res.status(500).json({ error: "Failed to subscribe token" });
+  }
+});
 
 app.use(errorHandler as ErrorRequestHandler);
 app.use((req: Request, res: Response, next: NextFunction) => {

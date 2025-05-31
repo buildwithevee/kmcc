@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError, ApiResponse } from "../utils/apiHandlerHelpers";
 import { prismaClient } from "../config/db";
 import sharp from "sharp";
+import { sendGlobalNotification } from "../utils/notify";
 
 export const createNews = asyncHandler(async (req: Request, res: Response) => {
   const { type, heading, author, body, timeToRead } = req.body;
@@ -40,6 +41,11 @@ export const createNews = asyncHandler(async (req: Request, res: Response) => {
         image: compressedImage,
         authorImage: compressedAuthorImage,
       },
+    });
+    await sendGlobalNotification({
+      title: heading,
+      body: "Check out the latest update!",
+      data: { type: "news", newsId: news.id.toString() },
     });
 
     res
